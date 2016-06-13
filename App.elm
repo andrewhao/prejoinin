@@ -6,33 +6,20 @@ import Http
 import Json.Decode as Json
 import Task
 
-
-main =
-  Html.program
-    { init = init "cats"
-    , view = view
-    , update = update
-    , subscriptions = subscriptions
-    }
-
 -- MODEL
+
 type alias Model =
-  { topic : String
-  , gifUrl : String
+  { sheetId : String
+  , sheetDetails : String
   }
 
-
 init : String -> (Model, Cmd Msg)
-init topic =
-  ( Model topic "waiting.gif"
-  , getRandomGif topic
+init sheetId =
+  ( Model sheetId "sample_sheet", sheetDetails "{}"
+  , getSheetDetails sheetId
   )
 
-
-
 -- UPDATE
-
-
 type Msg
   = MorePlease
   | FetchSucceed String
@@ -43,51 +30,48 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
     MorePlease ->
-      (model, getRandomGif model.topic)
+      (model, getSheetDetails model.sheetId)
 
     FetchSucceed newUrl ->
-      (Model model.topic newUrl, Cmd.none)
+      (Model model.sheetId newUrl, Cmd.none)
 
     FetchFail _ ->
       (model, Cmd.none)
 
-
-
 -- VIEW
-
-
 view : Model -> Html Msg
 view model =
   div []
-    [ h2 [] [text model.topic]
+    [ h2 [] [text model.sheetId]
     , button [ onClick MorePlease ] [ text "More Please!" ]
     , br [] []
-    , img [src model.gifUrl] []
+    , p [] [text model.sheetDetails]
     ]
 
-
-
 -- SUBSCRIPTIONS
-
-
 subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.none
 
-
-
 -- HTTP
-
-
-getRandomGif : String -> Cmd Msg
-getRandomGif topic =
+getSheetDetails : String -> Cmd Msg
+getSheetDetails sheetId =
   let
     url =
-      "//api.giphy.com/v1/gifs/random?api_key=dc6zaTOxFJmzC&tag=" ++ topic
+      "//localhost:8000/mock_sheets/" ++ sheetId ++ ".json"
   in
-    Task.perform FetchFail FetchSucceed (Http.get decodeGifUrl url)
+    Task.perform FetchFail FetchSucceed (Http.get fetchSheetDetails url)
+
+fetchSheetDetails : Json.Decoder String
+fetchSheetDetails =
+  Json.at ["signups_count"] Json.string
 
 
-decodeGifUrl : Json.Decoder String
-decodeGifUrl =
-  Json.at ["data", "image_url"] Json.string
+main =
+  Html.program
+    { init = init "sample_sheet"
+    , view = view
+    , update = update
+    , subscriptions = subscriptions
+    }
+
