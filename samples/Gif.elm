@@ -6,7 +6,6 @@ import Http
 import Json.Decode as Json
 import Task
 
-
 main =
   Html.program
     { init = init "cats"
@@ -28,16 +27,12 @@ init topic =
   , getRandomGif topic
   )
 
-
-
 -- UPDATE
-
 
 type Msg
   = MorePlease
   | FetchSucceed String
   | FetchFail Http.Error
-
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -51,10 +46,7 @@ update msg model =
     FetchFail _ ->
       (model, Cmd.none)
 
-
-
 -- VIEW
-
 
 view : Model -> Html Msg
 view model =
@@ -65,19 +57,13 @@ view model =
     , img [src model.gifUrl] []
     ]
 
-
-
 -- SUBSCRIPTIONS
-
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.none
 
-
-
 -- HTTP
-
 
 getRandomGif : String -> Cmd Msg
 getRandomGif topic =
@@ -86,7 +72,6 @@ getRandomGif topic =
       "//api.giphy.com/v1/gifs/random?api_key=dc6zaTOxFJmzC&tag=" ++ topic
   in
     Task.perform FetchFail FetchSucceed (Http.get decodeGifUrl url)
-
 
 decodeGifUrl : Json.Decoder String
 decodeGifUrl =

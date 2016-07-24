@@ -7,7 +7,6 @@ import Json.Decode as Json
 import Task
 
 -- MODEL
-
 type alias Model =
   { sheetId : String
   , sheetDetails : String
