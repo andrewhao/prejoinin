@@ -1,6 +1,5 @@
 import Html exposing (Html, button, div, text, Attribute)
 import Html.Attributes exposing (style, id)
-import Html.App as Html
 import Html.Events exposing (onClick)
 import Dict exposing (Dict)
 import Debug exposing (log)
