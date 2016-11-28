@@ -1,10 +1,8 @@
 import Html exposing (..)
-import Html.App as Html
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
-import Json.Decode as Json
-import Task
+import Json.Decode as Decode
 
 -- MODEL
 type alias Model =
@@ -21,9 +19,7 @@ init sheetId =
 -- UPDATE
 type Msg
   = MorePlease
-  | FetchSucceed String
-  | FetchFail Http.Error
-
+  | NewGif (Result Http.Error String)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -31,10 +27,10 @@ update msg model =
     MorePlease ->
       (model, getSheetDetails model.sheetId)
 
-    FetchSucceed newUrl ->
+    NewGif (Ok newUrl) ->
       (Model model.sheetId newUrl, Cmd.none)
 
-    FetchFail _ ->
+    NewGif (Err _) ->
       (model, Cmd.none)
 
 -- VIEW
@@ -48,27 +44,30 @@ view model =
     ]
 
 -- SUBSCRIPTIONS
+
 subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.none
 
+
 -- HTTP
+
 getSheetDetails : String -> Cmd Msg
 getSheetDetails sheetId =
   let
     url =
       "//localhost:8000/mock_sheets/" ++ sheetId ++ ".json"
   in
-    Task.perform FetchFail FetchSucceed (Http.get fetchSheetDetails url)
+    Http.send NewGif (Http.get url fetchSheetDetails)
 
-fetchSheetDetails : Json.Decoder String
+
+fetchSheetDetails : Decode.Decoder String
 fetchSheetDetails =
-  Json.at ["signups_count"] Json.string
-
+  Decode.at ["signups_count"] Decode.string
 
 main =
   Html.program
-    { init = init "sample_sheet"
+    { init = init "cats"
     , view = view
     , update = update
     , subscriptions = subscriptions

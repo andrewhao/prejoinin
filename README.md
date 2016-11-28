@@ -6,3 +6,7 @@ Wejoinin signup sheet preview widget.
 
     $ elm make
     $ elm package install
+
+## Running the app
+
+    $ elm reactor
