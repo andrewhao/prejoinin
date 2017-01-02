@@ -3,6 +3,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
 import Json.Decode as Decode
+import Debug exposing (log)
 
 -- MODEL
 type alias Model =
@@ -12,14 +13,14 @@ type alias Model =
 
 init : String -> (Model, Cmd Msg)
 init sheetId =
-  ( Model sheetId "sample_sheet", sheetDetails "{}"
+  ( Model sheetId "{}"
   , getSheetDetails sheetId
   )
 
 -- UPDATE
 type Msg
   = MorePlease
-  | NewGif (Result Http.Error String)
+  | ReceiveSheetDetails (Result Http.Error String)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -27,11 +28,14 @@ update msg model =
     MorePlease ->
       (model, getSheetDetails model.sheetId)
 
-    NewGif (Ok newUrl) ->
+    ReceiveSheetDetails (Ok newUrl) ->
       (Model model.sheetId newUrl, Cmd.none)
 
-    NewGif (Err _) ->
-      (model, Cmd.none)
+    ReceiveSheetDetails (Err err) ->
+      case err of
+        BadResponse code e ->
+          log e
+          (model, Cmd.none)
 
 -- VIEW
 view : Model -> Html Msg
@@ -58,7 +62,8 @@ getSheetDetails sheetId =
     url =
       "//localhost:8000/mock_sheets/" ++ sheetId ++ ".json"
   in
-    Http.send NewGif (Http.get url fetchSheetDetails)
+    log url
+    Http.send ReceiveSheetDetails (Http.get url fetchSheetDetails)
 
 
 fetchSheetDetails : Decode.Decoder String
@@ -67,7 +72,7 @@ fetchSheetDetails =
 
 main =
   Html.program
-    { init = init "cats"
+    { init = init "sample_sheet"
     , view = view
     , update = update
     , subscriptions = subscriptions
