@@ -2,49 +2,47 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
-import Json.Decode as Decode
-import Debug exposing (log)
+import Json.Decode exposing (..)
+import Debug exposing (..)
 
 -- MODEL
 type alias Model =
   { sheetId : String
-  , sheetDetails : String
+  , signupCount : Int
   }
 
 init : String -> (Model, Cmd Msg)
 init sheetId =
-  ( Model sheetId "{}"
+  ( Model sheetId 0
   , getSheetDetails sheetId
   )
 
 -- UPDATE
 type Msg
-  = MorePlease
-  | ReceiveSheetDetails (Result Http.Error String)
+  = RefreshSheet
+  | ReceiveSheetDetails (Result Http.Error Int)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    MorePlease ->
+    RefreshSheet ->
       (model, getSheetDetails model.sheetId)
 
-    ReceiveSheetDetails (Ok newUrl) ->
-      (Model model.sheetId newUrl, Cmd.none)
+    ReceiveSheetDetails (Ok newSignupCount) ->
+      (Model model.sheetId newSignupCount, Cmd.none)
 
     ReceiveSheetDetails (Err err) ->
-      case err of
-        BadResponse code e ->
-          log e
-          (model, Cmd.none)
+      Debug.log (toString err)
+      (model, Cmd.none)
 
 -- VIEW
 view : Model -> Html Msg
 view model =
   div []
     [ h2 [] [text model.sheetId]
-    , button [ onClick MorePlease ] [ text "More Please!" ]
+    , button [ onClick RefreshSheet ] [ text "Refresh" ]
     , br [] []
-    , p [] [text model.sheetDetails]
+    , p [] [text (model.signupCount |> toString)]
     ]
 
 -- SUBSCRIPTIONS
@@ -66,9 +64,9 @@ getSheetDetails sheetId =
     Http.send ReceiveSheetDetails (Http.get url fetchSheetDetails)
 
 
-fetchSheetDetails : Decode.Decoder String
+fetchSheetDetails : Decoder Int
 fetchSheetDetails =
-  Decode.at ["signups_count"] Decode.string
+  at ["signups_count"] int
 
 main =
   Html.program
