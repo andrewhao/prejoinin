@@ -1,0 +1,25 @@
+{
+  "name": "prejoinin",
+  "version": "1.0.0",
+  "description": "Wejoinin signup sheet preview widget.",
+  "main": "repl-temp-000.js",
+  "dependencies": {
+    "elm-live": "2.7.5"
+  },
+  "devDependencies": {
+    "elm-live": "2.7.5"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andrewhao/prejoinin.git"
+  },
+  "author": "Andrew Hao",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/andrewhao/prejoinin/issues"
+  },
+  "homepage": "https://github.com/andrewhao/prejoinin#readme"
+}

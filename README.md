@@ -9,4 +9,4 @@ Wejoinin signup sheet preview widget.
 
 ## Running the app
 
-    $ elm reactor
+    $ elm live App.elm --open
