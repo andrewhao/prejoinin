@@ -35,7 +35,7 @@
       "value":"New Column (0)"
     }
   ],
-  "signup_slots":[
+  "slots":[
     {
       "id":"1",
       "row_id":"1",
@@ -72,6 +72,8 @@
       "name":"Andrew Hao"
     }
   ],
+  "title":"Great sheet",
+  "description":"description",
   "isAdmin":true,
   "formatted_title":"A fun sheet",
   "formatted_description":"\u003cp\u003etest\u003c/p\u003e"

@@ -1,20 +1,112 @@
-{  
-  "id":192401,
-  "user_id":841,
-  "title":"Potluck",
-  "url_title":null,
-  "description":"Hello",
-  "open_at":null,
-  "close_at":null,
-  "signups_count":18,
-  "hits_count":3822,
-  "created_at":null,
-  "updated_at":"2013-08-23T23:19:26.000Z",
-  "deleted_at":null,
-  "sheet_options":{  
-
-  },
-  "formatted_title":"Rides for Betty Dunn",
-  "formatted_description":"\u003cp\u003eRotation schedule. These are rides for Betty from church to home.\n\u003c/p\u003e"
+{
+  "title": "A fun sheet",
+  "description": "test",
+  "sheetUrl": "/sheets/uhnsg",
+  "editSheetUrl": "/sheets/uhnsg/edit",
+  "rows": [
+    {
+      "id": "1",
+      "type": "Row",
+      "position": 1,
+      "value": "asdf"
+    },
+    {
+      "id": "6",
+      "type": "Row",
+      "position": 2,
+      "value": "Watcher"
+    }
+  ],
+  "columns": [
+    {
+      "id": "2",
+      "type": "Column",
+      "position": 1,
+      "value": "Column"
+    },
+    {
+      "id": "3",
+      "type": "Column",
+      "position": 2,
+      "value": "Cool"
+    },
+    {
+      "id": "4",
+      "type": "Column",
+      "position": 3,
+      "value": "Bro"
+    },
+    {
+      "id": "5",
+      "type": "Column",
+      "position": 4,
+      "value": "New Column (0)"
+    }
+  ],
+  "slots": [
+    {
+      "id": "1",
+      "row_id": "1",
+      "column_id": "2",
+      "max_signups": 0,
+      "closed": false
+    },
+    {
+      "id": "2",
+      "row_id": "1",
+      "column_id": "3",
+      "max_signups": 0,
+      "closed": false
+    },
+    {
+      "id": "3",
+      "row_id": "1",
+      "column_id": "4",
+      "max_signups": 0,
+      "closed": false
+    },
+    {
+      "id": "4",
+      "row_id": "1",
+      "column_id": "5",
+      "max_signups": 0,
+      "closed": false
+    },
+    {
+      "id": "5",
+      "row_id": "6",
+      "column_id": "2",
+      "max_signups": 0,
+      "closed": false
+    },
+    {
+      "id": "6",
+      "row_id": "6",
+      "column_id": "3",
+      "max_signups": 0,
+      "closed": false
+    },
+    {
+      "id": "7",
+      "row_id": "6",
+      "column_id": "4",
+      "max_signups": 0,
+      "closed": false
+    },
+    {
+      "id": "8",
+      "row_id": "6",
+      "column_id": "5",
+      "max_signups": 0,
+      "closed": false
+    }
+  ],
+  "signups": [
+    {
+      "id": "1",
+      "signup_slot_id": "1",
+      "name": "jhkjh"
+    }
+  ],
+  "isAdmin": false
 }
-
