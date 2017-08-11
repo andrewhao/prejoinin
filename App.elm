@@ -79,7 +79,6 @@ update msg model =
       , Cmd.none)
 
     ReceiveSheetDetails (Err err) ->
-      Debug.log (toString err)
       (model, Cmd.none)
 
     ChangeSheetID newSheetId ->
@@ -117,7 +116,6 @@ getSheetDetails sheetId =
     log url
     Http.send ReceiveSheetDetails (Http.get url fetchSheetDetails)
 
-
 fetchSheetDetails : Decoder SheetJSONResponse
 fetchSheetDetails =
   map5 SheetJSONResponse
@@ -141,7 +139,6 @@ decodeColumns =
     (field "position" int)
     (field "value" string)
 
-
 decodeSignupSlots : Decoder (List SignupSlot)
 decodeSignupSlots =
   map5 SignupSlot
@@ -158,4 +155,3 @@ main =
     , update = update
     , subscriptions = subscriptions
     }
-
