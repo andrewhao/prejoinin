@@ -1,9 +1,50 @@
+module SignupTable exposing (..)
+
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (..)
 import Http
 import Json.Decode exposing (..)
 import Debug exposing (..)
+
+type Msg
+  = FetchSheet
+  | ReceiveSheetDetails (Result Http.Error SheetJSONResponse)
+  | ChangeSheetID String
+
+-- INIT
+
+init : String -> (Model, Cmd Msg)
+init sheetId =
+  ( Model sheetId 0 "" "" [] [] []
+  , getSheetDetails sheetId
+  )
+
+-- UPDATE
+
+update : Msg -> Model -> (Model, Cmd Msg)
+update msg model =
+  case msg of
+    FetchSheet ->
+      (model, getSheetDetails model.sheetId)
+
+    ReceiveSheetDetails (Ok jsonResponse) ->
+      (Model model.sheetId
+             0
+             jsonResponse.title
+             jsonResponse.description
+             jsonResponse.rows
+             jsonResponse.columns
+             jsonResponse.signupSlots
+      , Cmd.none)
+
+    ReceiveSheetDetails (Err err) ->
+      Debug.log (toString err)
+      (model, Cmd.none)
+
+    ChangeSheetID newSheetId ->
+      ({ model | sheetId = newSheetId }
+      , Cmd.none)
+
 
 -- MODEL
 type alias Model =
@@ -14,24 +55,6 @@ type alias Model =
   , rows: List Row
   , columns: List Column
   , signupSlots: List SignupSlot
-  }
-
-init : String -> (Model, Cmd Msg)
-init sheetId =
-  ( Model sheetId 0 "" "" [] [] []
-  , getSheetDetails sheetId
-  )
-
--- UPDATE
-type Msg
-  = FetchSheet
-  | ReceiveSheetDetails (Result Http.Error SheetJSONResponse)
-  | ChangeSheetID String
-
-type alias LegacySheetJSONResponse =
-  { signupCount : Int
-  , title : String
-  , description : String
   }
 
 type alias SheetJSONResponse =
@@ -65,52 +88,20 @@ type alias SignupSlot =
 type alias Sortable a =
   { a | position : Int }
 
-update : Msg -> Model -> (Model, Cmd Msg)
-update msg model =
-  case msg of
-    FetchSheet ->
-      (model, getSheetDetails model.sheetId)
-
-    ReceiveSheetDetails (Ok jsonResponse) ->
-      (Model model.sheetId
-             0
-             jsonResponse.title
-             jsonResponse.description
-             jsonResponse.rows
-             jsonResponse.columns
-             jsonResponse.signupSlots
-      , Cmd.none)
-
-    ReceiveSheetDetails (Err err) ->
-      Debug.log (toString err)
-      (model, Cmd.none)
-
-    ChangeSheetID newSheetId ->
-      ({ model | sheetId = newSheetId }
-      , Cmd.none)
 
 -- VIEW
 view : Model -> Html Msg
 view model =
   div []
-    [ input [ placeholder "Sheet ID", onInput ChangeSheetID ] []
-    , h2 [] [text model.sheetId]
-    , button [ onClick FetchSheet ] [ text "Fetch" ]
-    , br [] []
-    , p [] [text (model.signupCount |> toString)]
-    , h1 [] [text (model.title)]
-    , p [] [text (model.description)]
-    , table [] [
+    [ table [] [
         thead [] [viewTableColumnHeaderRow model.columns]
       , tbody [] (List.map (\row -> viewTableRow row model.signupSlots) model.rows)
       ]
     ]
 
-
 sortByPosition : List (Sortable a) -> List (Sortable a)
 sortByPosition sortable =
   List.sortBy .position sortable
-
 
 viewTableColumnHeaderRow : List Column -> Html Msg
 viewTableColumnHeaderRow columnList =
@@ -148,7 +139,6 @@ viewSignupSlotValue signupSlotMaybe =
         toString signupSlot.closed
       Nothing ->
         ""
-
 
 -- SUBSCRIPTIONS
 
@@ -212,11 +202,3 @@ decodeSignupSlot =
     (field "max_signups" int)
     (field "closed" bool)
 
-main : Program Never Model Msg
-main =
-  Html.program
-    { init = init "sheet1"
-    , view = view
-    , update = update
-    , subscriptions = subscriptions
-    }
