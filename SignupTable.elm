@@ -165,7 +165,7 @@ fetchSheetDetails =
     (field "description" string)
     (field "rows" decodeRows)
     (field "columns" decodeColumns)
-    (field "slots" decodeSignupSlots)
+    (field "signup_slots" decodeSignupSlots)
 
 decodeRows : Decoder (List Row)
 decodeRows =

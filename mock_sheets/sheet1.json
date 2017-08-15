@@ -43,7 +43,7 @@
       "value": "New Column (0)"
     }
   ],
-  "slots": [
+  "signup_slots": [
     {
       "id": "1",
       "row_id": "1",

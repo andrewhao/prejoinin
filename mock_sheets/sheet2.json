@@ -19,7 +19,7 @@
       "value": "Column"
     }
   ],
-  "slots": [
+  "signup_slots": [
     {
       "id": "1",
       "row_id": "1",
