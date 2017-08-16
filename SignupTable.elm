@@ -11,7 +11,7 @@ module SignupTable
 import Data.Sheet exposing (Column, Row, SheetJSONResponse, Signup, SignupSlot, decodeColumns, decodeRows, decodeSignupSlots, decodeSignups)
 import Debug exposing (..)
 import Html exposing (..)
-import Html.Attributes exposing (class, disabled, placeholder)
+import Html.Attributes exposing (autofocus, class, classList, disabled, name, placeholder, type_)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode exposing (..)
@@ -33,7 +33,7 @@ type Msg
 
 init : String -> ( Model, Cmd Msg )
 init sheetId =
-    ( Model sheetId "" "" [] [] [] []
+    ( Model sheetId "" "" [] [] [] [] Nothing
     , getSheetDetails sheetId
     )
 
@@ -56,6 +56,7 @@ update msg model =
                 jsonResponse.columns
                 jsonResponse.signupSlots
                 jsonResponse.signups
+                model.focusedSlotId
             , Cmd.none
             )
 
@@ -69,7 +70,7 @@ update msg model =
             )
 
         FocusSlotJoin slotID ->
-            ( model, Cmd.none )
+            ( { model | focusedSlotId = Just slotID }, Cmd.none )
 
 
 type alias Sortable a =
@@ -84,6 +85,7 @@ type alias Model =
     , columns : List Column
     , signupSlots : List SignupSlot
     , signups : List Signup
+    , focusedSlotId : Maybe String
     }
 
 
@@ -107,7 +109,7 @@ viewTable model =
     div []
         [ table []
             [ thead [] [ viewTableColumnHeaderRow model.columns ]
-            , tbody [] (List.map (\row -> viewTableRow row model.signupSlots model.signups) model.rows)
+            , tbody [] (List.map (\row -> viewTableRow row model) model.rows)
             ]
         ]
 
@@ -128,34 +130,65 @@ viewColumnHeader column =
         [ text column.value ]
 
 
-viewTableRow : Row -> List SignupSlot -> List Signup -> Html Msg
-viewTableRow row signupSlotList signupList =
-    tr []
-        (List.append
-            [ (th [] [ text row.value ]) ]
-            (viewRowSlots row signupSlotList signupList)
-        )
-
-
-viewRowSlots : Row -> List SignupSlot -> List Signup -> List (Html Msg)
-viewRowSlots row signupSlotList signupList =
+viewTableRow : Row -> Model -> Html Msg
+viewTableRow row model =
     let
-        rowSignupSlots =
-            (List.filter (\slot -> slot.rowId == row.id) signupSlotList)
+        signupSlotList =
+            model.signupSlots
+
+        signupList =
+            model.signups
     in
-        List.map (\rowSignupSlot -> viewSignupSlot rowSignupSlot signupList) rowSignupSlots
+        tr []
+            (List.append
+                [ (th [] [ text row.value ]) ]
+                (viewRowSlots row model)
+            )
 
 
-viewSignupSlot : SignupSlot -> List Signup -> Html Msg
-viewSignupSlot signupSlot signupList =
+viewRowSlots : Row -> Model -> List (Html Msg)
+viewRowSlots row model =
+    let
+        signupList =
+            model.signups
+
+        rowSignupSlots =
+            (List.filter (\slot -> slot.rowId == row.id) model.signupSlots)
+    in
+        List.map (\rowSignupSlot -> viewSignupSlot rowSignupSlot model) rowSignupSlots
+
+
+viewSignupSlot : SignupSlot -> Model -> Html Msg
+viewSignupSlot signupSlot model =
     td []
-        [ div [ class "signups" ] (viewSignupsForSlot signupSlot signupList)
-        , (if signupSlot.closed then
-            button [ class "join", disabled True ] [ text "Join ->" ]
-           else
-            button [ class "join", onClick (FocusSlotJoin signupSlot.id) ] [ text "Join ->" ]
-          )
+        [ div [ class "signups" ] (viewSignupsForSlot signupSlot model.signups)
+        , viewFocusedSignupForm signupSlot model
+        , viewSignupSlotJoinButton signupSlot model
         ]
+
+
+viewFocusedSignupForm : SignupSlot -> Model -> Html Msg
+viewFocusedSignupForm signupSlot model =
+    (if model.focusedSlotId == Just signupSlot.id then
+        div [ class "signup-form" ]
+            [ form []
+                [ div [] [ input [ type_ "text", name "name", placeholder "Name", autofocus True ] [] ]
+                , div [] [ input [ type_ "email", name "email", placeholder "Email" ] [] ]
+                , div [] [ textarea [ name "comment", placeholder "Comment" ] [] ]
+                ]
+            ]
+     else
+        div [] [ text "" ]
+    )
+
+
+viewSignupSlotJoinButton : SignupSlot -> Model -> Html Msg
+viewSignupSlotJoinButton signupSlot model =
+    (if signupSlot.closed then
+        button [ class "join", disabled True ] [ text "Join ->" ]
+     else
+        button [ class "join", onClick (FocusSlotJoin signupSlot.id) ] [ text "Join ->" ]
+    )
 
 
 viewSignupSlotValue : Maybe SignupSlot -> String
