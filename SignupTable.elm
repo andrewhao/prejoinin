@@ -8,9 +8,10 @@ module SignupTable
         , subscriptions
         )
 
+import Data.Sheet exposing (Column, Row, SheetJSONResponse, Signup, SignupSlot, decodeColumns, decodeRows, decodeSignupSlots, decodeSignups)
 import Debug exposing (..)
 import Html exposing (..)
-import Html.Attributes exposing (class, placeholder)
+import Html.Attributes exposing (class, disabled, placeholder)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode exposing (..)
@@ -23,6 +24,7 @@ type Msg
     = FetchSheet
     | ReceiveSheetDetails (Result Http.Error SheetJSONResponse)
     | ChangeSheetID String
+    | FocusSlotJoin String
 
 
 
@@ -31,7 +33,7 @@ type Msg
 
 init : String -> ( Model, Cmd Msg )
 init sheetId =
-    ( Model sheetId 0 "" "" [] [] [] []
+    ( Model sheetId "" "" [] [] [] []
     , getSheetDetails sheetId
     )
 
@@ -48,7 +50,6 @@ update msg model =
 
         ReceiveSheetDetails (Ok jsonResponse) ->
             ( Model model.sheetId
-                0
                 jsonResponse.title
                 jsonResponse.description
                 jsonResponse.rows
@@ -67,14 +68,16 @@ update msg model =
             , Cmd.none
             )
 
+        FocusSlotJoin slotID ->
+            ( model, Cmd.none )
 
 
--- MODEL
+type alias Sortable a =
+    { a | position : Int }
 
 
 type alias Model =
     { sheetId : String
-    , signupCount : Int
     , title : String
     , description : String
     , rows : List Row
@@ -82,51 +85,6 @@ type alias Model =
     , signupSlots : List SignupSlot
     , signups : List Signup
     }
-
-
-type alias SheetJSONResponse =
-    { title : String
-    , description : String
-    , rows : List Row
-    , columns : List Column
-    , signupSlots : List SignupSlot
-    , signups : List Signup
-    }
-
-
-type alias Row =
-    { id : String
-    , position : Int
-    , value : String
-    }
-
-
-type alias Column =
-    { id : String
-    , position : Int
-    , value : String
-    }
-
-
-type alias SignupSlot =
-    { id : String
-    , rowId : String
-    , columnId : String
-    , maxSignups : Int
-    , closed : Bool
-    }
-
-
-type alias Signup =
-    { id : String
-    , signupSlotId : String
-    , name : String
-    , comment : String
-    }
-
-
-type alias Sortable a =
-    { a | position : Int }
 
 
 
@@ -137,10 +95,7 @@ view : Model -> Html Msg
 view model =
     div []
         [ input [ placeholder "Sheet ID", onInput ChangeSheetID ] []
-        , h2 [] [ text model.sheetId ]
         , button [ onClick FetchSheet ] [ text "Fetch" ]
-        , br [] []
-        , p [] [ text (model.signupCount |> toString) ]
         , h1 [] [ text (model.title) ]
         , p [] [ text (model.description) ]
         , viewTable model
@@ -195,12 +150,11 @@ viewSignupSlot : SignupSlot -> List Signup -> Html Msg
 viewSignupSlot signupSlot signupList =
     td []
         [ div [ class "signups" ] (viewSignupsForSlot signupSlot signupList)
-        , text
-            (if signupSlot.closed then
-                "closed"
-             else
-                ""
-            )
+        , (if signupSlot.closed then
+            button [ class "join", disabled True ] [ text "Join ->" ]
+           else
+            button [ class "join", onClick (FocusSlotJoin signupSlot.id) ] [ text "Join ->" ]
+          )
         ]
 
 
@@ -267,62 +221,3 @@ fetchSheetDetails =
         (field "columns" decodeColumns)
         (field "signup_slots" decodeSignupSlots)
         (field "signups" decodeSignups)
-
-
-
--- JSON
-
-
-decodeRows : Decoder (List Row)
-decodeRows =
-    Json.Decode.list decodeRow
-
-
-decodeRow : Decoder Row
-decodeRow =
-    map3 Row
-        (field "id" string)
-        (field "position" int)
-        (field "value" string)
-
-
-decodeColumns : Decoder (List Column)
-decodeColumns =
-    Json.Decode.list decodeColumn
-
-
-decodeColumn : Decoder Column
-decodeColumn =
-    map3 Column
-        (field "id" string)
-        (field "position" int)
-        (field "value" string)
-
-
-decodeSignupSlots : Decoder (List SignupSlot)
-decodeSignupSlots =
-    Json.Decode.list decodeSignupSlot
-
-
-decodeSignupSlot : Decoder SignupSlot
-decodeSignupSlot =
-    map5 SignupSlot
-        (field "id" string)
-        (field "row_id" string)
-        (field "column_id" string)
-        (field "max_signups" int)
-        (field "closed" bool)
-
-
-decodeSignups : Decoder (List Signup)
-decodeSignups =
-    Json.Decode.list decodeSignup
-
-
-decodeSignup : Decoder Signup
-decodeSignup =
-    map4 Signup
-        (field "id" string)
-        (field "signup_slot_id" string)
-        (field "name" string)
-        (field "comment" string)
