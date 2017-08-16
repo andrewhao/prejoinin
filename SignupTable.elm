@@ -1,17 +1,22 @@
 module SignupTable
     exposing
         ( Msg(..)
+        , Model
         , init
         , update
         , view
         , subscriptions
-        , Model
         )
 
+import Debug exposing (..)
 import Html exposing (..)
+import Html.Attributes exposing (class, placeholder)
+import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode exposing (..)
-import Debug exposing (..)
+
+
+-- MESSAGES
 
 
 type Msg
@@ -26,7 +31,7 @@ type Msg
 
 init : String -> ( Model, Cmd Msg )
 init sheetId =
-    ( Model sheetId 0 "" "" [] [] []
+    ( Model sheetId 0 "" "" [] [] [] []
     , getSheetDetails sheetId
     )
 
@@ -49,6 +54,7 @@ update msg model =
                 jsonResponse.rows
                 jsonResponse.columns
                 jsonResponse.signupSlots
+                jsonResponse.signups
             , Cmd.none
             )
 
@@ -74,6 +80,7 @@ type alias Model =
     , rows : List Row
     , columns : List Column
     , signupSlots : List SignupSlot
+    , signups : List Signup
     }
 
 
@@ -83,6 +90,7 @@ type alias SheetJSONResponse =
     , rows : List Row
     , columns : List Column
     , signupSlots : List SignupSlot
+    , signups : List Signup
     }
 
 
@@ -109,6 +117,14 @@ type alias SignupSlot =
     }
 
 
+type alias Signup =
+    { id : String
+    , signupSlotId : String
+    , name : String
+    , comment : String
+    }
+
+
 type alias Sortable a =
     { a | position : Int }
 
@@ -120,9 +136,23 @@ type alias Sortable a =
 view : Model -> Html Msg
 view model =
     div []
+        [ input [ placeholder "Sheet ID", onInput ChangeSheetID ] []
+        , h2 [] [ text model.sheetId ]
+        , button [ onClick FetchSheet ] [ text "Fetch" ]
+        , br [] []
+        , p [] [ text (model.signupCount |> toString) ]
+        , h1 [] [ text (model.title) ]
+        , p [] [ text (model.description) ]
+        , viewTable model
+        ]
+
+
+viewTable : Model -> Html Msg
+viewTable model =
+    div []
         [ table []
             [ thead [] [ viewTableColumnHeaderRow model.columns ]
-            , tbody [] (List.map (\row -> viewTableRow row model.signupSlots) model.rows)
+            , tbody [] (List.map (\row -> viewTableRow row model.signupSlots model.signups) model.rows)
             ]
         ]
 
@@ -143,28 +173,34 @@ viewColumnHeader column =
         [ text column.value ]
 
 
-viewTableRow : Row -> List SignupSlot -> Html Msg
-viewTableRow row signupSlots =
+viewTableRow : Row -> List SignupSlot -> List Signup -> Html Msg
+viewTableRow row signupSlotList signupList =
     tr []
         (List.append
             [ (th [] [ text row.value ]) ]
-            (viewRowSlots row signupSlots)
+            (viewRowSlots row signupSlotList signupList)
         )
 
 
-viewRowSlots : Row -> List SignupSlot -> List (Html Msg)
-viewRowSlots row signupSlotList =
+viewRowSlots : Row -> List SignupSlot -> List Signup -> List (Html Msg)
+viewRowSlots row signupSlotList signupList =
     let
         rowSignupSlots =
             (List.filter (\slot -> slot.rowId == row.id) signupSlotList)
     in
-        List.map viewSignupSlot rowSignupSlots
+        List.map (\rowSignupSlot -> viewSignupSlot rowSignupSlot signupList) rowSignupSlots
 
 
-viewSignupSlot : SignupSlot -> Html Msg
-viewSignupSlot signupSlot =
+viewSignupSlot : SignupSlot -> List Signup -> Html Msg
+viewSignupSlot signupSlot signupList =
     td []
-        [ text (toString signupSlot.closed)
+        [ div [ class "signups" ] (viewSignupsForSlot signupSlot signupList)
+        , text
+            (if signupSlot.closed then
+                "closed"
+             else
+                ""
+            )
         ]
 
 
@@ -176,6 +212,25 @@ viewSignupSlotValue signupSlotMaybe =
 
         Nothing ->
             ""
+
+
+viewSignupsForSlot : SignupSlot -> List Signup -> List (Html Msg)
+viewSignupsForSlot signupSlot signupList =
+    let
+        filteredSignups =
+            signupsForSlot signupSlot signupList
+    in
+        List.map viewSignup filteredSignups
+
+
+viewSignup : Signup -> Html Msg
+viewSignup signup =
+    div [] [ text (signup.name ++ "(" ++ signup.comment ++ ")") ]
+
+
+signupsForSlot : SignupSlot -> List Signup -> List Signup
+signupsForSlot signupSlot signupList =
+    List.filter (\signup -> signup.signupSlotId == signupSlot.id) signupList
 
 
 
@@ -195,7 +250,7 @@ getSheetDetails : String -> Cmd Msg
 getSheetDetails sheetId =
     let
         url =
-            "//localhost:8000/mock_sheets/" ++ sheetId ++ ".json"
+            "//localhost:3000/api/v1/sheets/" ++ sheetId ++ ".json"
     in
         log url
             Http.send
@@ -205,12 +260,13 @@ getSheetDetails sheetId =
 
 fetchSheetDetails : Decoder SheetJSONResponse
 fetchSheetDetails =
-    map5 SheetJSONResponse
+    map6 SheetJSONResponse
         (field "title" string)
         (field "description" string)
         (field "rows" decodeRows)
         (field "columns" decodeColumns)
         (field "signup_slots" decodeSignupSlots)
+        (field "signups" decodeSignups)
 
 
 
@@ -256,3 +312,17 @@ decodeSignupSlot =
         (field "column_id" string)
         (field "max_signups" int)
         (field "closed" bool)
+
+
+decodeSignups : Decoder (List Signup)
+decodeSignups =
+    Json.Decode.list decodeSignup
+
+
+decodeSignup : Decoder Signup
+decodeSignup =
+    map4 Signup
+        (field "id" string)
+        (field "signup_slot_id" string)
+        (field "name" string)
+        (field "comment" string)
