@@ -8,24 +8,14 @@ module SignupTable
         , subscriptions
         )
 
-import Data.Sheet exposing (Column, Row, SheetJSONResponse, Signup, SignupSlot, decodeColumns, decodeRows, decodeSignupSlots, decodeSignups)
+import Data.Sheet exposing (Column, Row, SheetJSONResponse, Signup, SignupJSONResponse, SignupSlot, decodeColumns, decodeRows, decodeSignupSlots, decodeSignups)
 import Debug exposing (..)
 import Html exposing (..)
-import Html.Attributes
-    exposing
-        ( autofocus
-        , href
-        , class
-        , classList
-        , disabled
-        , name
-        , placeholder
-        , type_
-        , value
-        )
-import Html.Events exposing (onClick, onInput)
+import Html.Attributes exposing (autofocus, class, classList, disabled, href, name, placeholder, type_, value)
+import Html.Events exposing (onClick, onInput, onSubmit)
 import Http
 import Json.Decode exposing (..)
+import Json.Encode
 
 
 -- MESSAGES
@@ -34,12 +24,14 @@ import Json.Decode exposing (..)
 type Msg
     = FetchSheet
     | ReceiveSheetDetails (Result Http.Error SheetJSONResponse)
+    | ReceiveSignupResponse (Result Http.Error SignupJSONResponse)
     | ChangeSheetID SheetID
     | FocusSlotJoin SignupSlotID
     | EditNewSignupName String
     | EditNewSignupEmail String
     | EditNewSignupComment String
     | CancelSlotFocus SignupSlotID
+    | SubmitNewSignup
 
 
 type alias SheetID =
@@ -124,6 +116,16 @@ update msg model =
     case msg of
         FetchSheet ->
             ( model, getSheetDetails model.sheetId )
+
+        SubmitNewSignup ->
+            ( model, createSignup model )
+
+        ReceiveSignupResponse (Err err) ->
+            log (toString err)
+                ( model, Cmd.none )
+
+        ReceiveSignupResponse (Ok jsonResponse) ->
+            ( model, Cmd.none )
 
         ReceiveSheetDetails (Ok jsonResponse) ->
             ( Model
@@ -260,7 +262,7 @@ viewFocusedSignupForm : SignupSlot -> Model -> Bool -> Html Msg
 viewFocusedSignupForm signupSlot model isFocused =
     (if isFocused then
         div [ class "signup-form" ]
-            [ form []
+            [ form [ onSubmit SubmitNewSignup ]
                 [ div [] [ input [ type_ "text", name "name", placeholder "Name", autofocus True, onInput EditNewSignupName ] [] ]
                 , div [] [ input [ type_ "email", name "email", placeholder "Email", onInput EditNewSignupEmail ] [] ]
                 , div [] [ textarea [ name "comment", placeholder "Comment", onInput EditNewSignupComment ] [] ]
@@ -278,7 +280,7 @@ viewSignupSlotJoinButton signupSlot model isFocused =
      else
         (if isFocused then
             div []
-                [ button [ class "submit" ] [ text "Sign up" ]
+                [ button [ class "submit", onClick SubmitNewSignup ] [ text "Sign up" ]
                 , div [] [ text "or" ]
                 , a [ href "#", onClick (CancelSlotFocus signupSlot.id) ] [ text "cancel" ]
                 ]
@@ -338,6 +340,28 @@ subscriptions model =
 -- HTTP
 
 
+encodedSignupValue : Model -> Json.Encode.Value
+encodedSignupValue model =
+    Json.Encode.object
+        [ ( "signup_slot_id", Json.Encode.string (Maybe.withDefault "" model.focusedSlotId) )
+        , ( "name", Json.Encode.string (Maybe.withDefault "" model.currentNewSignupName) )
+        , ( "email", Json.Encode.string (Maybe.withDefault "" model.currentNewSignupEmail) )
+        , ( "comment", Json.Encode.string (Maybe.withDefault "" model.currentNewSignupComment) )
+        ]
+
+
+postNewSignup : Model -> Http.Request SignupJSONResponse
+postNewSignup model =
+    Http.post "//localhost:3000/api/v1/signups"
+        (Http.jsonBody (encodedSignupValue model))
+        decodeSignupResponse
+
+
+createSignup : Model -> Cmd Msg
+createSignup model =
+    Http.send ReceiveSignupResponse (postNewSignup model)
+
+
 getSheetDetails : String -> Cmd Msg
 getSheetDetails sheetId =
     let
@@ -347,12 +371,22 @@ getSheetDetails sheetId =
         log url
             Http.send
             ReceiveSheetDetails
-            (Http.get url fetchSheetDetails)
+            (Http.get url decodeSheetResponse)
 
 
-fetchSheetDetails : Decoder SheetJSONResponse
-fetchSheetDetails =
-    map6 SheetJSONResponse
+decodeSignupResponse : Decoder SignupJSONResponse
+decodeSignupResponse =
+    map4 SignupJSONResponse
+        (field "id" string)
+        (field "signup_slot_id" string)
+        (field "name" string)
+        (field "comment" string)
+
+
+decodeSheetResponse : Decoder SheetJSONResponse
+decodeSheetResponse =
+    map7 SheetJSONResponse
+        (field "id" string)
         (field "title" string)
         (field "description" string)
         (field "rows" decodeRows)
