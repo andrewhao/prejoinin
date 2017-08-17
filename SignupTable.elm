@@ -11,7 +11,18 @@ module SignupTable
 import Data.Sheet exposing (Column, Row, SheetJSONResponse, Signup, SignupSlot, decodeColumns, decodeRows, decodeSignupSlots, decodeSignups)
 import Debug exposing (..)
 import Html exposing (..)
-import Html.Attributes exposing (autofocus, class, classList, disabled, name, placeholder, type_)
+import Html.Attributes
+    exposing
+        ( autofocus
+        , href
+        , class
+        , classList
+        , disabled
+        , name
+        , placeholder
+        , type_
+        , value
+        )
 import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode exposing (..)
@@ -23,8 +34,64 @@ import Json.Decode exposing (..)
 type Msg
     = FetchSheet
     | ReceiveSheetDetails (Result Http.Error SheetJSONResponse)
-    | ChangeSheetID String
-    | FocusSlotJoin String
+    | ChangeSheetID SheetID
+    | FocusSlotJoin SignupSlotID
+    | EditNewSignupName String
+    | EditNewSignupEmail String
+    | EditNewSignupComment String
+    | CancelSlotFocus SignupSlotID
+
+
+type alias SheetID =
+    String
+
+
+type alias RowID =
+    String
+
+
+type alias SignupSlotID =
+    String
+
+
+type alias SignupID =
+    String
+
+
+type alias Model =
+    { sheetId : SheetID
+    , title : String
+    , description : String
+    , rows : List Row
+    , columns : List Column
+    , signupSlots : List SignupSlot
+    , signups : List Signup
+    , focusedSlotId : Maybe SignupSlotID
+    , currentNewSignupName : Maybe String
+    , currentNewSignupEmail : Maybe String
+    , currentNewSignupComment : Maybe String
+    }
+
+
+type alias Sortable a =
+    { a | position : Int }
+
+
+
+-- A Sheet minimally composes these attributes
+--
+
+
+type alias Sheet a =
+    { a
+        | sheetId : SheetID
+        , title : String
+        , description : String
+        , rows : List Row
+        , columns : List Column
+        , signupSlots : List SignupSlot
+        , signups : List Signup
+    }
 
 
 
@@ -33,7 +100,17 @@ type Msg
 
 init : String -> ( Model, Cmd Msg )
 init sheetId =
-    ( Model sheetId "" "" [] [] [] [] Nothing
+    ( Model sheetId
+        ""
+        ""
+        []
+        []
+        []
+        []
+        Nothing
+        Nothing
+        Nothing
+        Nothing
     , getSheetDetails sheetId
     )
 
@@ -49,7 +126,8 @@ update msg model =
             ( model, getSheetDetails model.sheetId )
 
         ReceiveSheetDetails (Ok jsonResponse) ->
-            ( Model model.sheetId
+            ( Model
+                model.sheetId
                 jsonResponse.title
                 jsonResponse.description
                 jsonResponse.rows
@@ -57,6 +135,9 @@ update msg model =
                 jsonResponse.signupSlots
                 jsonResponse.signups
                 model.focusedSlotId
+                model.currentNewSignupName
+                model.currentNewSignupEmail
+                model.currentNewSignupComment
             , Cmd.none
             )
 
@@ -72,31 +153,35 @@ update msg model =
         FocusSlotJoin slotID ->
             ( { model | focusedSlotId = Just slotID }, Cmd.none )
 
+        EditNewSignupName newName ->
+            ( { model | currentNewSignupName = Just newName }, Cmd.none )
 
-type alias Sortable a =
-    { a | position : Int }
+        EditNewSignupEmail newEmail ->
+            ( { model | currentNewSignupEmail = Just newEmail }, Cmd.none )
+
+        EditNewSignupComment newComment ->
+            ( { model | currentNewSignupComment = Just newComment }, Cmd.none )
+
+        CancelSlotFocus slotID ->
+            ( { model
+                | focusedSlotId = Nothing
+                , currentNewSignupName = Nothing
+                , currentNewSignupEmail = Nothing
+                , currentNewSignupComment = Nothing
+              }
+            , Cmd.none
+            )
 
 
-type alias Model =
-    { sheetId : String
-    , title : String
-    , description : String
-    , rows : List Row
-    , columns : List Column
-    , signupSlots : List SignupSlot
-    , signups : List Signup
-    , focusedSlotId : Maybe String
-    }
 
-
-
+--
 -- VIEW
 
 
 view : Model -> Html Msg
 view model =
     div []
-        [ input [ placeholder "Sheet ID", onInput ChangeSheetID ] []
+        [ input [ placeholder "Sheet ID", onInput ChangeSheetID, Html.Attributes.value model.sheetId ] []
         , button [ onClick FetchSheet ] [ text "Fetch" ]
         , h1 [] [ text (model.title) ]
         , p [] [ text (model.description) ]
@@ -160,21 +245,25 @@ viewRowSlots row model =
 
 viewSignupSlot : SignupSlot -> Model -> Html Msg
 viewSignupSlot signupSlot model =
-    td []
-        [ div [ class "signups" ] (viewSignupsForSlot signupSlot model.signups)
-        , viewFocusedSignupForm signupSlot model
-        , viewSignupSlotJoinButton signupSlot model
-        ]
+    let
+        isFocused =
+            model.focusedSlotId == Just signupSlot.id
+    in
+        td []
+            [ div [ class "signups" ] (viewSignupsForSlot signupSlot model.signups)
+            , viewFocusedSignupForm signupSlot model isFocused
+            , viewSignupSlotJoinButton signupSlot model isFocused
+            ]
 
 
-viewFocusedSignupForm : SignupSlot -> Model -> Html Msg
-viewFocusedSignupForm signupSlot model =
-    (if model.focusedSlotId == Just signupSlot.id then
+viewFocusedSignupForm : SignupSlot -> Model -> Bool -> Html Msg
+viewFocusedSignupForm signupSlot model isFocused =
+    (if isFocused then
         div [ class "signup-form" ]
             [ form []
-                [ div [] [ input [ type_ "text", name "name", placeholder "Name", autofocus True ] [] ]
-                , div [] [ input [ type_ "email", name "email", placeholder "Email" ] [] ]
-                , div [] [ textarea [ name "comment", placeholder "Comment" ] [] ]
+                [ div [] [ input [ type_ "text", name "name", placeholder "Name", autofocus True, onInput EditNewSignupName ] [] ]
+                , div [] [ input [ type_ "email", name "email", placeholder "Email", onInput EditNewSignupEmail ] [] ]
+                , div [] [ textarea [ name "comment", placeholder "Comment", onInput EditNewSignupComment ] [] ]
                 ]
             ]
      else
@@ -182,12 +271,20 @@ viewFocusedSignupForm signupSlot model =
     )
 
 
-viewSignupSlotJoinButton : SignupSlot -> Model -> Html Msg
-viewSignupSlotJoinButton signupSlot model =
+viewSignupSlotJoinButton : SignupSlot -> Model -> Bool -> Html Msg
+viewSignupSlotJoinButton signupSlot model isFocused =
     (if signupSlot.closed then
         button [ class "join", disabled True ] [ text "Join ->" ]
      else
-        button [ class "join", onClick (FocusSlotJoin signupSlot.id) ] [ text "Join ->" ]
+        (if isFocused then
+            div []
+                [ button [ class "submit" ] [ text "Sign up" ]
+                , div [] [ text "or" ]
+                , a [ href "#", onClick (CancelSlotFocus signupSlot.id) ] [ text "cancel" ]
+                ]
+         else
+            button [ class "join", onClick (FocusSlotJoin signupSlot.id) ] [ text "Join ->" ]
+        )
     )
 
 
@@ -212,7 +309,15 @@ viewSignupsForSlot signupSlot signupList =
 
 viewSignup : Signup -> Html Msg
 viewSignup signup =
-    div [] [ text (signup.name ++ "(" ++ signup.comment ++ ")") ]
+    let
+        signupText =
+            (if String.isEmpty signup.comment then
+                signup.name
+             else
+                (signup.name ++ " (" ++ signup.comment ++ ")")
+            )
+    in
+        div [] [ text signupText ]
 
 
 signupsForSlot : SignupSlot -> List Signup -> List Signup
