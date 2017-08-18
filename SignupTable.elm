@@ -1,26 +1,12 @@
-module SignupTable
-    exposing
-        ( Msg(..)
-        , Model
-        , init
-        , update
-        , view
-        , subscriptions
-        )
+module SignupTable exposing (Msg(..), Model, init, update, view, subscriptions)
 
-import Bootstrap.Button as Button
-import Bootstrap.Card as Card
-import Bootstrap.Form as Form
-import Bootstrap.Form.Input as Input
-import Bootstrap.Grid as Grid
-import Bootstrap.Table as Table
 import Data.Sheet exposing (Column, Row, SheetJSONResponse, Signup, SignupJSONResponse, SignupSlot, decodeColumns, decodeRows, decodeSignupSlots, decodeSignups)
-import Debug exposing (..)
+import Debug exposing (log)
 import Html exposing (..)
 import Html.Attributes exposing (autofocus, class, classList, disabled, for, href, name, placeholder, required, type_, value)
-import Html.Events exposing (onClick, onInput, onSubmit, onWithOptions)
+import Html.Events exposing (onClick, onInput, onSubmit)
 import Http
-import Json.Decode exposing (..)
+import Json.Decode exposing (Decoder, field, string, map4, map7)
 import Json.Encode
 
 
@@ -31,6 +17,8 @@ import Bootstrap.Form as Form
 import Bootstrap.Form.Input as Input
 import Bootstrap.Button as Button
 import Bootstrap.Card as Card
+import Bootstrap.Form as Form
+import Bootstrap.Form.Input as Input
 import Bootstrap.Table as Table
 
 
@@ -83,23 +71,6 @@ type alias Model =
 
 type alias Sortable a =
     { a | position : Int }
-
-
-
--- A Sheet minimally composes these attributes
---
-
-
-type alias Sheet a =
-    { a
-        | sheetId : SheetID
-        , title : String
-        , description : String
-        , rows : List Row
-        , columns : List Column
-        , signupSlots : List SignupSlot
-        , signups : List Signup
-    }
 
 
 
@@ -241,7 +212,7 @@ viewTable : Model -> Html Msg
 viewTable model =
     div []
         [ Table.table
-            { options = []
+            { options = [ Table.responsive ]
             , thead = Table.thead [] [ viewTableColumnHeaderRow model.columns ]
             , tbody = Table.tbody [] (List.map (\row -> viewTableRow row model) model.rows)
             }
@@ -299,7 +270,7 @@ viewSignupSlot signupSlot model =
             model.focusedSlotId == Just signupSlot.id
     in
         Table.td []
-            [ div [ class "signups" ] (viewSignupsForSlot signupSlot model.signups)
+            [ div [ class "signup-cell__signups" ] (viewSignupsForSlot signupSlot model.signups)
             , viewFocusedSignupForm signupSlot model isFocused
             , viewSignupSlotJoinButton signupSlot model isFocused
             ]
@@ -308,7 +279,7 @@ viewSignupSlot signupSlot model =
 viewFocusedSignupForm : SignupSlot -> Model -> Bool -> Html Msg
 viewFocusedSignupForm signupSlot model isFocused =
     (if isFocused then
-        div [ class "signup-form" ]
+        div [ class "signup-cell__form" ]
             [ form [ onSubmit SubmitNewSignup ]
                 [ div [] [ input [ type_ "text", name "name", placeholder "Name", autofocus True, onInput EditNewSignupName, required True ] [] ]
                 , div [] [ input [ type_ "email", name "email", placeholder "Email", onInput EditNewSignupEmail, required True ] [] ]
@@ -327,15 +298,16 @@ viewFocusedSignupForm signupSlot model isFocused =
 
 viewSignupSlotJoinButton : SignupSlot -> Model -> Bool -> Html Msg
 viewSignupSlotJoinButton signupSlot model isFocused =
-    (if signupSlot.closed then
-        a [ class "btn btn-secondary btn-sm disabled", href "#", disabled True ] [ text "Join →" ]
-     else
-        (if isFocused then
-            div [] []
-         else
-            Button.button [ Button.small, Button.outlinePrimary, Button.onClick (FocusSlotJoin signupSlot.id) ] [ text "Join →" ]
-        )
-    )
+    if isFocused then
+        div [] []
+    else
+        Button.button
+            [ Button.small
+            , Button.outlinePrimary
+            , Button.onClick (FocusSlotJoin signupSlot.id)
+            , Button.attrs [ disabled signupSlot.closed ]
+            ]
+            [ text "Join →" ]
 
 
 viewSignupSlotValue : Maybe SignupSlot -> String
