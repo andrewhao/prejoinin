@@ -8,14 +8,30 @@ module SignupTable
         , subscriptions
         )
 
+import Bootstrap.Button as Button
+import Bootstrap.Card as Card
+import Bootstrap.Form as Form
+import Bootstrap.Form.Input as Input
+import Bootstrap.Grid as Grid
+import Bootstrap.Table as Table
 import Data.Sheet exposing (Column, Row, SheetJSONResponse, Signup, SignupJSONResponse, SignupSlot, decodeColumns, decodeRows, decodeSignupSlots, decodeSignups)
 import Debug exposing (..)
 import Html exposing (..)
-import Html.Attributes exposing (autofocus, class, classList, disabled, href, name, placeholder, type_, value)
-import Html.Events exposing (onClick, onInput, onSubmit)
+import Html.Attributes exposing (autofocus, class, classList, disabled, for, href, name, placeholder, required, type_, value)
+import Html.Events exposing (onClick, onInput, onSubmit, onWithOptions)
 import Http
 import Json.Decode exposing (..)
 import Json.Encode
+
+
+-- Bootstrap style helpers
+
+import Bootstrap.Grid as Grid
+import Bootstrap.Form as Form
+import Bootstrap.Form.Input as Input
+import Bootstrap.Button as Button
+import Bootstrap.Card as Card
+import Bootstrap.Table as Table
 
 
 -- MESSAGES
@@ -125,7 +141,9 @@ update msg model =
                 ( model, Cmd.none )
 
         ReceiveSignupResponse (Ok jsonResponse) ->
-            ( model, Cmd.none )
+            ( model |> defocusSlot
+            , getSheetDetails model.sheetId
+            )
 
         ReceiveSheetDetails (Ok jsonResponse) ->
             ( Model
@@ -165,14 +183,19 @@ update msg model =
             ( { model | currentNewSignupComment = Just newComment }, Cmd.none )
 
         CancelSlotFocus slotID ->
-            ( { model
-                | focusedSlotId = Nothing
-                , currentNewSignupName = Nothing
-                , currentNewSignupEmail = Nothing
-                , currentNewSignupComment = Nothing
-              }
+            ( defocusSlot model
             , Cmd.none
             )
+
+
+defocusSlot : Model -> Model
+defocusSlot model =
+    { model
+        | focusedSlotId = Nothing
+        , currentNewSignupName = Nothing
+        , currentNewSignupEmail = Nothing
+        , currentNewSignupComment = Nothing
+    }
 
 
 
@@ -182,22 +205,46 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ input [ placeholder "Sheet ID", onInput ChangeSheetID, Html.Attributes.value model.sheetId ] []
-        , button [ onClick FetchSheet ] [ text "Fetch" ]
-        , h1 [] [ text (model.title) ]
-        , p [] [ text (model.description) ]
-        , viewTable model
+    Grid.containerFluid []
+        [ Grid.row []
+            [ Grid.col []
+                [ viewDevelopmentDebugHeader model
+                , h1 [] [ text (model.title) ]
+                , p [] [ text (model.description) ]
+                , viewTable model
+                ]
+            ]
         ]
+
+
+viewDevelopmentDebugHeader : Model -> Html Msg
+viewDevelopmentDebugHeader model =
+    Card.config []
+        |> Card.header []
+            [ text "DEVELOPMENT MODE" ]
+        |> Card.block []
+            [ Card.text []
+                [ Form.form []
+                    [ Form.group []
+                        [ Form.label [ for "dev_sheet_id" ] [ text "Sheet ID" ]
+                        , Input.text [ Input.id "dev_sheet_id", Input.onInput ChangeSheetID, Input.value model.sheetId ]
+                        , Form.help [] [ text "Sheet ID you wish to query for" ]
+                        , Button.button [ Button.primary, Button.onClick FetchSheet ] [ text "Fetch" ]
+                        ]
+                    ]
+                ]
+            ]
+        |> Card.view
 
 
 viewTable : Model -> Html Msg
 viewTable model =
     div []
-        [ table []
-            [ thead [] [ viewTableColumnHeaderRow model.columns ]
-            , tbody [] (List.map (\row -> viewTableRow row model) model.rows)
-            ]
+        [ Table.table
+            { options = []
+            , thead = Table.thead [] [ viewTableColumnHeaderRow model.columns ]
+            , tbody = Table.tbody [] (List.map (\row -> viewTableRow row model) model.rows)
+            }
         ]
 
 
@@ -206,18 +253,18 @@ sortByPosition sortable =
     List.sortBy .position sortable
 
 
-viewTableColumnHeaderRow : List Column -> Html Msg
+viewTableColumnHeaderRow : List Column -> Table.Row Msg
 viewTableColumnHeaderRow columnList =
-    tr [] ([ (th [] [ text "" ]) ] ++ (List.map viewColumnHeader (columnList |> sortByPosition)))
+    Table.tr [] ([ (Table.th [] [ text "" ]) ] ++ (List.map viewColumnHeader (columnList |> sortByPosition)))
 
 
-viewColumnHeader : Column -> Html Msg
+viewColumnHeader : Column -> Table.Cell Msg
 viewColumnHeader column =
-    th []
+    Table.th []
         [ text column.value ]
 
 
-viewTableRow : Row -> Model -> Html Msg
+viewTableRow : Row -> Model -> Table.Row Msg
 viewTableRow row model =
     let
         signupSlotList =
@@ -226,14 +273,14 @@ viewTableRow row model =
         signupList =
             model.signups
     in
-        tr []
+        Table.tr []
             (List.append
-                [ (th [] [ text row.value ]) ]
+                [ (Table.th [] [ text row.value ]) ]
                 (viewRowSlots row model)
             )
 
 
-viewRowSlots : Row -> Model -> List (Html Msg)
+viewRowSlots : Row -> Model -> List (Table.Cell Msg)
 viewRowSlots row model =
     let
         signupList =
@@ -245,13 +292,13 @@ viewRowSlots row model =
         List.map (\rowSignupSlot -> viewSignupSlot rowSignupSlot model) rowSignupSlots
 
 
-viewSignupSlot : SignupSlot -> Model -> Html Msg
+viewSignupSlot : SignupSlot -> Model -> Table.Cell Msg
 viewSignupSlot signupSlot model =
     let
         isFocused =
             model.focusedSlotId == Just signupSlot.id
     in
-        td []
+        Table.td []
             [ div [ class "signups" ] (viewSignupsForSlot signupSlot model.signups)
             , viewFocusedSignupForm signupSlot model isFocused
             , viewSignupSlotJoinButton signupSlot model isFocused
@@ -263,29 +310,30 @@ viewFocusedSignupForm signupSlot model isFocused =
     (if isFocused then
         div [ class "signup-form" ]
             [ form [ onSubmit SubmitNewSignup ]
-                [ div [] [ input [ type_ "text", name "name", placeholder "Name", autofocus True, onInput EditNewSignupName ] [] ]
-                , div [] [ input [ type_ "email", name "email", placeholder "Email", onInput EditNewSignupEmail ] [] ]
-                , div [] [ textarea [ name "comment", placeholder "Comment", onInput EditNewSignupComment ] [] ]
+                [ div [] [ input [ type_ "text", name "name", placeholder "Name", autofocus True, onInput EditNewSignupName, required True ] [] ]
+                , div [] [ input [ type_ "email", name "email", placeholder "Email", onInput EditNewSignupEmail, required True ] [] ]
+                , div [] [ textarea [ name "comment", placeholder "Comment (optional)", onInput EditNewSignupComment ] [] ]
+                , div []
+                    [ Button.button [ Button.small, Button.primary, Button.attrs [ type_ "submit" ] ] [ text "Sign up" ]
+                    , div [] [ text "or" ]
+                    , a [ href "javascript:void(0);", onClick (CancelSlotFocus signupSlot.id) ] [ text "cancel" ]
+                    ]
                 ]
             ]
      else
-        div [] [ text "" ]
+        div [] []
     )
 
 
 viewSignupSlotJoinButton : SignupSlot -> Model -> Bool -> Html Msg
 viewSignupSlotJoinButton signupSlot model isFocused =
     (if signupSlot.closed then
-        button [ class "join", disabled True ] [ text "Join ->" ]
+        a [ class "btn btn-secondary btn-sm disabled", href "#", disabled True ] [ text "Join →" ]
      else
         (if isFocused then
-            div []
-                [ button [ class "submit", onClick SubmitNewSignup ] [ text "Sign up" ]
-                , div [] [ text "or" ]
-                , a [ href "#", onClick (CancelSlotFocus signupSlot.id) ] [ text "cancel" ]
-                ]
+            div [] []
          else
-            button [ class "join", onClick (FocusSlotJoin signupSlot.id) ] [ text "Join ->" ]
+            Button.button [ Button.small, Button.outlinePrimary, Button.onClick (FocusSlotJoin signupSlot.id) ] [ text "Join →" ]
         )
     )
 
