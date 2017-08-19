@@ -354,20 +354,24 @@ viewSignupForm signupSlot model isFocused =
                                 [ Input.onInput EditNewSignupName
                                 , Input.attrs [ type_ "text", name "name", placeholder "Name", autofocus True, onInput EditNewSignupName, required True ]
                                 ]
-                            , Input.email
-                                [ Input.onInput EditNewSignupEmail
-                                , Input.attrs [ type_ "email", name "email", placeholder "Email", required True ]
-                                ]
-                            , Textarea.textarea
-                                [ Textarea.onInput EditNewSignupComment
-                                , Textarea.attrs [ name "comment", placeholder "Comment (optional)" ]
-                                ]
                             ]
-                        , div []
-                            [ Button.button [ Button.small, Button.primary, Button.attrs [ type_ "submit" ] ] [ text "Sign up" ]
-                            , span [] [ text " or " ]
-                            , a [ href "javascript:void(0);", onClick (CancelSlotFocus signupSlot.id) ] [ text "cancel" ]
+                        ]
+                    , Form.group []
+                        [ Input.email
+                            [ Input.onInput EditNewSignupEmail
+                            , Input.attrs [ type_ "email", name "email", placeholder "Email", required True ]
                             ]
+                        ]
+                    , Form.group []
+                        [ Textarea.textarea
+                            [ Textarea.onInput EditNewSignupComment
+                            , Textarea.attrs [ name "comment", placeholder "Comment (optional)" ]
+                            ]
+                        ]
+                    , div []
+                        [ Button.button [ Button.primary, Button.attrs [ type_ "submit" ] ] [ text "Sign up" ]
+                        , span [] [ text " or " ]
+                        , a [ href "javascript:void(0);", onClick (CancelSlotFocus signupSlot.id) ] [ text "cancel" ]
                         ]
                     ]
                 ]
