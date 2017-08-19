@@ -224,9 +224,11 @@ view model =
         [ Grid.row []
             [ Grid.col []
                 [ viewDevelopmentDebugHeader model
-                , h1 [] [ text (model.title) ]
-                , p [] [ text (model.description) ]
-                , viewTable model
+                , div [ class "sheet" ]
+                    [ h1 [ class "sheet__title" ] [ text (model.title) ]
+                    , p [ class "sheet__description" ] [ text (model.description) ]
+                    , viewTable model
+                    ]
                 ]
             ]
         ]
@@ -254,13 +256,11 @@ viewDevelopmentDebugHeader model =
 
 viewTable : Model -> Html Msg
 viewTable model =
-    div []
-        [ Table.table
-            { options = []
-            , thead = Table.thead [] [ viewTableColumnHeaderRow model.columns ]
-            , tbody = Table.tbody [] (List.map (\row -> viewTableRow row model) model.rows)
-            }
-        ]
+    Table.table
+        { options = [ Table.attr <| class "signup-table" ]
+        , thead = Table.thead [] [ viewTableColumnHeaderRow model.columns ]
+        , tbody = Table.tbody [] (List.map (viewTableRow model) model.rows)
+        }
 
 
 sortByPosition : List (Sortable a) -> List (Sortable a)
@@ -275,12 +275,12 @@ viewTableColumnHeaderRow columnList =
 
 viewColumnHeader : Column -> Table.Cell Msg
 viewColumnHeader column =
-    Table.th []
+    Table.th [ Table.cellAttr <| class "signup-table__column-header signup-table__header" ]
         [ text column.value ]
 
 
-viewTableRow : Row -> Model -> Table.Row Msg
-viewTableRow row model =
+viewTableRow : Model -> Row -> Table.Row Msg
+viewTableRow model row =
     let
         signupSlotList =
             model.signupSlots
@@ -290,7 +290,7 @@ viewTableRow row model =
     in
         Table.tr []
             (List.append
-                [ (Table.th [] [ text row.value ]) ]
+                [ (Table.th [ Table.cellAttr <| class "signup-table__row-header signup-table__header" ] [ text row.value ]) ]
                 (viewRowSlots row model)
             )
 
@@ -313,8 +313,8 @@ viewSignupSlot signupSlot model =
         isFocused =
             model.focusedSlotId == Just signupSlot.id
     in
-        Table.td []
-            [ div [ class "signup-cell__signups" ] (viewSignupsForSlot signupSlot model.signups)
+        Table.td [ Table.cellAttr <| class "signup-table__cell" ]
+            [ div [ class "signup-cell__signup-list" ] (viewSignupsForSlot signupSlot model.signups)
             , viewSignupForm signupSlot model isFocused
             ]
 
@@ -334,11 +334,13 @@ viewSignupForm signupSlot model isFocused =
             (Button.button
                 [ Button.small
                 , Button.outlinePrimary
+                , Button.block
+                , Button.disabled signupSlot.closed
                 , Button.onClick (FocusSlotJoin signupSlot.id)
-                , Button.attrs
-                    (disabled signupSlot.closed
-                        :: Popover.onClick (popoverStateForSignupSlot model signupSlot) (PopoverMsg signupSlot.id)
-                    )
+                , Button.attrs <|
+                    Popover.onClick
+                        (popoverStateForSignupSlot model signupSlot)
+                        (PopoverMsg signupSlot.id)
                 ]
                 [ text "Join →" ]
             )
@@ -402,7 +404,7 @@ viewSignup signup =
                 (signup.name ++ " (" ++ signup.comment ++ ")")
             )
     in
-        div [] [ text signupText ]
+        div [ class "signup-table__signup" ] [ text signupText ]
 
 
 signupsForSlot : SignupSlot -> List Signup -> List Signup

@@ -1,0 +1,29 @@
+$signup-table-col-header-color: #98562e;
+$signup-table-row-header-color: #b17f5c;
+$signup-table-cell-color: #f1e4c2;
+$signup-table-header-text-color: #FFFFFF;
+
+.signup-table {
+  &__column-header {
+    background-color: $signup-table-col-header-color;
+    color: $signup-table-header-text-color
+  }
+
+  &__row-header {
+    background-color: $signup-table-row-header-color;
+    color: $signup-table-header-text-color
+  }
+
+  &__header {
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  &__cell {
+    background-color: $signup-table-cell-color;
+  }
+
+  &__signup {
+    border-bottom: 1px dotted #AAA;
+  }
+}

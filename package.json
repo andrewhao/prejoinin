@@ -7,10 +7,20 @@
     "elm-live": "2.7.5"
   },
   "devDependencies": {
+    "autoprefixer": "7.1.2",
+    "chokidar-cli": "1.2.0",
     "elm-format": "0.6.1-alpha",
-    "elm-live": "2.7.5"
+    "elm-live": "2.7.5",
+    "node-sass-chokidar": "0.0.3",
+    "npm-run-all": "4.0.2",
+    "postcss-cli": "4.1.0"
   },
   "scripts": {
+     "build-task:scss-compile": "node-sass-chokidar --source-map true scss/ -o dist/css",
+    "build-task:autoprefixer": "postcss dist/css/*.css --use autoprefixer -d dist/css",
+    "sass:build": "npm-run-all -p build-task:*",
+    "sass:watch": "chokidar 'scss/**/*.scss' -c 'npm run sass:build'",
+    "dev": "npm-run-all -p sass:*",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
