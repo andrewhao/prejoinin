@@ -314,9 +314,18 @@ viewSignupSlot signupSlot model =
             model.focusedSlotId == Just signupSlot.id
     in
         Table.td [ Table.cellAttr <| class "signup-table__cell" ]
-            [ div [ class "signup-cell__signup-list" ] (viewSignupsForSlot signupSlot model.signups)
+            [ div [ class "signup-cell__signup-list" ]
+                (List.append
+                    (viewSignupsForSlot signupSlot model.signups)
+                    (focusedSignupSlot model isFocused)
+                )
             , viewSignupForm signupSlot model isFocused
             ]
+
+
+focusedSignupSlot : Model -> Bool -> List (Html Msg)
+focusedSignupSlot model isFocused =
+    [ div [] [] ]
 
 
 popoverStateForSignupSlot : Model -> SignupSlot -> Popover.State
@@ -354,18 +363,21 @@ viewSignupForm signupSlot model isFocused =
                                 [ Input.onInput EditNewSignupName
                                 , Input.attrs [ type_ "text", name "name", placeholder "Name", autofocus True, onInput EditNewSignupName, required True ]
                                 ]
+                            , Form.help [] [ text "Your name to sign up with" ]
                             ]
-                        ]
-                    , Form.group []
-                        [ Input.email
-                            [ Input.onInput EditNewSignupEmail
-                            , Input.attrs [ type_ "email", name "email", placeholder "Email", required True ]
+                        , Form.group []
+                            [ Input.email
+                                [ Input.onInput EditNewSignupEmail
+                                , Input.attrs [ type_ "email", name "email", placeholder "Email", required True ]
+                                ]
+                            , Form.help [] [ text "You will be emailed a confirmation to this address." ]
                             ]
-                        ]
-                    , Form.group []
-                        [ Textarea.textarea
-                            [ Textarea.onInput EditNewSignupComment
-                            , Textarea.attrs [ name "comment", placeholder "Comment (optional)" ]
+                        , Form.group []
+                            [ Textarea.textarea
+                                [ Textarea.onInput EditNewSignupComment
+                                , Textarea.attrs [ name "comment", placeholder "Comment (optional)" ]
+                                ]
+                            , Form.help [] [ text "Anything other information you want to include" ]
                             ]
                         ]
                     , div []
@@ -377,16 +389,6 @@ viewSignupForm signupSlot model isFocused =
                 ]
             |> Popover.view (popoverStateForSignupSlot model signupSlot)
         ]
-
-
-viewSignupSlotValue : Maybe SignupSlot -> String
-viewSignupSlotValue signupSlotMaybe =
-    case signupSlotMaybe of
-        Just signupSlot ->
-            toString signupSlot.closed
-
-        Nothing ->
-            ""
 
 
 viewSignupsForSlot : SignupSlot -> List Signup -> List (Html Msg)
