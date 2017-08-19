@@ -1,31 +1,27 @@
-module SignupTable
-    exposing
-        ( Msg(..)
-        , Model
-        , init
-        , update
-        , view
-        , subscriptions
-        )
+module SignupTable exposing (Msg(..), Model, init, update, view, subscriptions)
 
-import Data.Sheet exposing (Column, Row, SheetJSONResponse, Signup, SignupSlot, decodeColumns, decodeRows, decodeSignupSlots, decodeSignups)
-import Debug exposing (..)
+import Data.Sheet exposing (Column, Row, SheetJSONResponse, Signup, SignupJSONResponse, SignupSlot, decodeColumns, decodeRows, decodeSignupSlots, decodeSignups)
+import Debug exposing (log)
 import Html exposing (..)
-import Html.Attributes
-    exposing
-        ( autofocus
-        , href
-        , class
-        , classList
-        , disabled
-        , name
-        , placeholder
-        , type_
-        , value
-        )
-import Html.Events exposing (onClick, onInput)
+import Html.Attributes exposing (autofocus, class, classList, disabled, for, href, name, placeholder, required, type_, value)
+import Html.Events exposing (onClick, onInput, onSubmit)
 import Http
-import Json.Decode exposing (..)
+import Json.Decode exposing (Decoder, field, string, map4, map7)
+import Json.Encode
+
+
+-- Bootstrap style helpers
+
+import Bootstrap.Grid as Grid
+import Bootstrap.Form as Form
+import Bootstrap.Form.Input as Input
+import Bootstrap.Form.Textarea as Textarea
+import Bootstrap.Button as Button
+import Bootstrap.Card as Card
+import Bootstrap.Form as Form
+import Bootstrap.Form.Input as Input
+import Bootstrap.Table as Table
+import Bootstrap.Popover as Popover
 
 
 -- MESSAGES
@@ -34,12 +30,15 @@ import Json.Decode exposing (..)
 type Msg
     = FetchSheet
     | ReceiveSheetDetails (Result Http.Error SheetJSONResponse)
+    | ReceiveSignupResponse (Result Http.Error SignupJSONResponse)
     | ChangeSheetID SheetID
     | FocusSlotJoin SignupSlotID
     | EditNewSignupName String
     | EditNewSignupEmail String
     | EditNewSignupComment String
     | CancelSlotFocus SignupSlotID
+    | SubmitNewSignup
+    | PopoverMsg String Popover.State
 
 
 type alias SheetID =
@@ -58,6 +57,12 @@ type alias SignupID =
     String
 
 
+type alias SignupSlotPopover =
+    { signupSlotId : SignupSlotID
+    , popoverState : Popover.State
+    }
+
+
 type alias Model =
     { sheetId : SheetID
     , title : String
@@ -70,28 +75,12 @@ type alias Model =
     , currentNewSignupName : Maybe String
     , currentNewSignupEmail : Maybe String
     , currentNewSignupComment : Maybe String
+    , signupSlotPopovers : List SignupSlotPopover
     }
 
 
 type alias Sortable a =
     { a | position : Int }
-
-
-
--- A Sheet minimally composes these attributes
---
-
-
-type alias Sheet a =
-    { a
-        | sheetId : SheetID
-        , title : String
-        , description : String
-        , rows : List Row
-        , columns : List Column
-        , signupSlots : List SignupSlot
-        , signups : List Signup
-    }
 
 
 
@@ -111,6 +100,7 @@ init sheetId =
         Nothing
         Nothing
         Nothing
+        []
     , getSheetDetails sheetId
     )
 
@@ -119,11 +109,33 @@ init sheetId =
 -- UPDATE
 
 
+initializeSignupSlotPopovers : List SignupSlot -> List SignupSlotPopover
+initializeSignupSlotPopovers signupSlotList =
+    List.map initializeSignupSlotPopover signupSlotList
+
+
+initializeSignupSlotPopover : SignupSlot -> SignupSlotPopover
+initializeSignupSlotPopover signupSlot =
+    { signupSlotId = signupSlot.id, popoverState = Popover.initialState }
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         FetchSheet ->
             ( model, getSheetDetails model.sheetId )
+
+        SubmitNewSignup ->
+            ( model, createSignup model )
+
+        ReceiveSignupResponse (Err err) ->
+            log (toString err)
+                ( model, Cmd.none )
+
+        ReceiveSignupResponse (Ok jsonResponse) ->
+            ( model |> defocusSlot
+            , getSheetDetails model.sheetId
+            )
 
         ReceiveSheetDetails (Ok jsonResponse) ->
             ( Model
@@ -138,6 +150,7 @@ update msg model =
                 model.currentNewSignupName
                 model.currentNewSignupEmail
                 model.currentNewSignupComment
+                (initializeSignupSlotPopovers jsonResponse.signupSlots)
             , Cmd.none
             )
 
@@ -162,15 +175,42 @@ update msg model =
         EditNewSignupComment newComment ->
             ( { model | currentNewSignupComment = Just newComment }, Cmd.none )
 
-        CancelSlotFocus slotID ->
-            ( { model
-                | focusedSlotId = Nothing
-                , currentNewSignupName = Nothing
-                , currentNewSignupEmail = Nothing
-                , currentNewSignupComment = Nothing
-              }
+        CancelSlotFocus slotId ->
+            ( defocusSlot model
             , Cmd.none
             )
+
+        PopoverMsg slotId state ->
+            let
+                updatedSignupSlotPopovers =
+                    updateStateForPopoverInSlot state slotId model.signupSlotPopovers
+            in
+                { model | signupSlotPopovers = updatedSignupSlotPopovers }
+                    |> update (FocusSlotJoin slotId)
+
+
+updateStateForPopoverInSlot : Popover.State -> SignupSlotID -> List SignupSlotPopover -> List SignupSlotPopover
+updateStateForPopoverInSlot popoverState signupSlotId signupSlotPopoverList =
+    List.map
+        (\slotPopover ->
+            (if slotPopover.signupSlotId == signupSlotId then
+                { slotPopover | popoverState = popoverState }
+             else
+                { slotPopover | popoverState = Popover.initialState }
+            )
+        )
+        signupSlotPopoverList
+
+
+defocusSlot : Model -> Model
+defocusSlot model =
+    { model
+        | focusedSlotId = Nothing
+        , currentNewSignupName = Nothing
+        , currentNewSignupEmail = Nothing
+        , currentNewSignupComment = Nothing
+        , signupSlotPopovers = initializeSignupSlotPopovers model.signupSlots
+    }
 
 
 
@@ -180,22 +220,46 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ input [ placeholder "Sheet ID", onInput ChangeSheetID, Html.Attributes.value model.sheetId ] []
-        , button [ onClick FetchSheet ] [ text "Fetch" ]
-        , h1 [] [ text (model.title) ]
-        , p [] [ text (model.description) ]
-        , viewTable model
+    Grid.containerFluid []
+        [ Grid.row []
+            [ Grid.col []
+                [ viewDevelopmentDebugHeader model
+                , h1 [] [ text (model.title) ]
+                , p [] [ text (model.description) ]
+                , viewTable model
+                ]
+            ]
         ]
+
+
+viewDevelopmentDebugHeader : Model -> Html Msg
+viewDevelopmentDebugHeader model =
+    Card.config []
+        |> Card.header []
+            [ text "DEVELOPMENT MODE" ]
+        |> Card.block []
+            [ Card.text []
+                [ Form.form []
+                    [ Form.group []
+                        [ Form.label [ for "dev_sheet_id" ] [ text "Sheet ID" ]
+                        , Input.text [ Input.id "dev_sheet_id", Input.onInput ChangeSheetID, Input.value model.sheetId ]
+                        , Form.help [] [ text "Sheet ID you wish to query for" ]
+                        , Button.button [ Button.primary, Button.onClick FetchSheet ] [ text "Fetch" ]
+                        ]
+                    ]
+                ]
+            ]
+        |> Card.view
 
 
 viewTable : Model -> Html Msg
 viewTable model =
     div []
-        [ table []
-            [ thead [] [ viewTableColumnHeaderRow model.columns ]
-            , tbody [] (List.map (\row -> viewTableRow row model) model.rows)
-            ]
+        [ Table.table
+            { options = []
+            , thead = Table.thead [] [ viewTableColumnHeaderRow model.columns ]
+            , tbody = Table.tbody [] (List.map (\row -> viewTableRow row model) model.rows)
+            }
         ]
 
 
@@ -204,18 +268,18 @@ sortByPosition sortable =
     List.sortBy .position sortable
 
 
-viewTableColumnHeaderRow : List Column -> Html Msg
+viewTableColumnHeaderRow : List Column -> Table.Row Msg
 viewTableColumnHeaderRow columnList =
-    tr [] ([ (th [] [ text "" ]) ] ++ (List.map viewColumnHeader (columnList |> sortByPosition)))
+    Table.tr [] ([ (Table.th [] [ text "" ]) ] ++ (List.map viewColumnHeader (columnList |> sortByPosition)))
 
 
-viewColumnHeader : Column -> Html Msg
+viewColumnHeader : Column -> Table.Cell Msg
 viewColumnHeader column =
-    th []
+    Table.th []
         [ text column.value ]
 
 
-viewTableRow : Row -> Model -> Html Msg
+viewTableRow : Row -> Model -> Table.Row Msg
 viewTableRow row model =
     let
         signupSlotList =
@@ -224,14 +288,14 @@ viewTableRow row model =
         signupList =
             model.signups
     in
-        tr []
+        Table.tr []
             (List.append
-                [ (th [] [ text row.value ]) ]
+                [ (Table.th [] [ text row.value ]) ]
                 (viewRowSlots row model)
             )
 
 
-viewRowSlots : Row -> Model -> List (Html Msg)
+viewRowSlots : Row -> Model -> List (Table.Cell Msg)
 viewRowSlots row model =
     let
         signupList =
@@ -243,49 +307,70 @@ viewRowSlots row model =
         List.map (\rowSignupSlot -> viewSignupSlot rowSignupSlot model) rowSignupSlots
 
 
-viewSignupSlot : SignupSlot -> Model -> Html Msg
+viewSignupSlot : SignupSlot -> Model -> Table.Cell Msg
 viewSignupSlot signupSlot model =
     let
         isFocused =
             model.focusedSlotId == Just signupSlot.id
     in
-        td []
-            [ div [ class "signups" ] (viewSignupsForSlot signupSlot model.signups)
-            , viewFocusedSignupForm signupSlot model isFocused
-            , viewSignupSlotJoinButton signupSlot model isFocused
+        Table.td []
+            [ div [ class "signup-cell__signups" ] (viewSignupsForSlot signupSlot model.signups)
+            , viewSignupForm signupSlot model isFocused
             ]
 
 
-viewFocusedSignupForm : SignupSlot -> Model -> Bool -> Html Msg
-viewFocusedSignupForm signupSlot model isFocused =
-    (if isFocused then
-        div [ class "signup-form" ]
-            [ form []
-                [ div [] [ input [ type_ "text", name "name", placeholder "Name", autofocus True, onInput EditNewSignupName ] [] ]
-                , div [] [ input [ type_ "email", name "email", placeholder "Email", onInput EditNewSignupEmail ] [] ]
-                , div [] [ textarea [ name "comment", placeholder "Comment", onInput EditNewSignupComment ] [] ]
-                ]
-            ]
-     else
-        div [] [ text "" ]
-    )
+popoverStateForSignupSlot : Model -> SignupSlot -> Popover.State
+popoverStateForSignupSlot model signupSlot =
+    List.filter (\ssp -> ssp.signupSlotId == signupSlot.id) model.signupSlotPopovers
+        |> List.head
+        |> Maybe.map .popoverState
+        |> Maybe.withDefault Popover.initialState
 
 
-viewSignupSlotJoinButton : SignupSlot -> Model -> Bool -> Html Msg
-viewSignupSlotJoinButton signupSlot model isFocused =
-    (if signupSlot.closed then
-        button [ class "join", disabled True ] [ text "Join ->" ]
-     else
-        (if isFocused then
-            div []
-                [ button [ class "submit" ] [ text "Sign up" ]
-                , div [] [ text "or" ]
-                , a [ href "#", onClick (CancelSlotFocus signupSlot.id) ] [ text "cancel" ]
+viewSignupForm : SignupSlot -> Model -> Bool -> Html Msg
+viewSignupForm signupSlot model isFocused =
+    div []
+        [ Popover.config
+            (Button.button
+                [ Button.small
+                , Button.outlinePrimary
+                , Button.onClick (FocusSlotJoin signupSlot.id)
+                , Button.attrs
+                    (disabled signupSlot.closed
+                        :: Popover.onClick (popoverStateForSignupSlot model signupSlot) (PopoverMsg signupSlot.id)
+                    )
                 ]
-         else
-            button [ class "join", onClick (FocusSlotJoin signupSlot.id) ] [ text "Join ->" ]
-        )
-    )
+                [ text "Join →" ]
+            )
+            |> Popover.bottom
+            |> Popover.titleH4 [] [ text "Join this slot" ]
+            |> Popover.content []
+                [ div [ classList [ ( "signup-cell__form", True ), ( "signup-cell__form-focus", isFocused ) ] ]
+                    [ Form.form [ onSubmit SubmitNewSignup ]
+                        [ Form.group []
+                            [ Input.text
+                                [ Input.onInput EditNewSignupName
+                                , Input.attrs [ type_ "text", name "name", placeholder "Name", autofocus True, onInput EditNewSignupName, required True ]
+                                ]
+                            , Input.email
+                                [ Input.onInput EditNewSignupEmail
+                                , Input.attrs [ type_ "email", name "email", placeholder "Email", required True ]
+                                ]
+                            , Textarea.textarea
+                                [ Textarea.onInput EditNewSignupComment
+                                , Textarea.attrs [ name "comment", placeholder "Comment (optional)" ]
+                                ]
+                            ]
+                        , div []
+                            [ Button.button [ Button.small, Button.primary, Button.attrs [ type_ "submit" ] ] [ text "Sign up" ]
+                            , span [] [ text " or " ]
+                            , a [ href "javascript:void(0);", onClick (CancelSlotFocus signupSlot.id) ] [ text "cancel" ]
+                            ]
+                        ]
+                    ]
+                ]
+            |> Popover.view (popoverStateForSignupSlot model signupSlot)
+        ]
 
 
 viewSignupSlotValue : Maybe SignupSlot -> String
@@ -338,6 +423,28 @@ subscriptions model =
 -- HTTP
 
 
+encodedSignupValue : Model -> Json.Encode.Value
+encodedSignupValue model =
+    Json.Encode.object
+        [ ( "signup_slot_id", Json.Encode.string (Maybe.withDefault "" model.focusedSlotId) )
+        , ( "name", Json.Encode.string (Maybe.withDefault "" model.currentNewSignupName) )
+        , ( "email", Json.Encode.string (Maybe.withDefault "" model.currentNewSignupEmail) )
+        , ( "comment", Json.Encode.string (Maybe.withDefault "" model.currentNewSignupComment) )
+        ]
+
+
+postNewSignup : Model -> Http.Request SignupJSONResponse
+postNewSignup model =
+    Http.post "//localhost:3000/api/v1/signups"
+        (Http.jsonBody (encodedSignupValue model))
+        decodeSignupResponse
+
+
+createSignup : Model -> Cmd Msg
+createSignup model =
+    Http.send ReceiveSignupResponse (postNewSignup model)
+
+
 getSheetDetails : String -> Cmd Msg
 getSheetDetails sheetId =
     let
@@ -347,12 +454,22 @@ getSheetDetails sheetId =
         log url
             Http.send
             ReceiveSheetDetails
-            (Http.get url fetchSheetDetails)
+            (Http.get url decodeSheetResponse)
 
 
-fetchSheetDetails : Decoder SheetJSONResponse
-fetchSheetDetails =
-    map6 SheetJSONResponse
+decodeSignupResponse : Decoder SignupJSONResponse
+decodeSignupResponse =
+    map4 SignupJSONResponse
+        (field "id" string)
+        (field "signup_slot_id" string)
+        (field "name" string)
+        (field "comment" string)
+
+
+decodeSheetResponse : Decoder SheetJSONResponse
+decodeSheetResponse =
+    map7 SheetJSONResponse
+        (field "id" string)
         (field "title" string)
         (field "description" string)
         (field "rows" decodeRows)
