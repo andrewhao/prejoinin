@@ -313,19 +313,42 @@ viewSignupSlot signupSlot model =
         isFocused =
             model.focusedSlotId == Just signupSlot.id
     in
-        Table.td [ Table.cellAttr <| class "signup-table__cell" ]
+        Table.td
+            [ Table.cellAttr <|
+                classList
+                    [ ( "signup-table__cell", True )
+                    , ( "signup-table__cell--focused", isFocused )
+                    ]
+            ]
             [ div [ class "signup-cell__signup-list" ]
                 (List.append
                     (viewSignupsForSlot signupSlot model.signups)
-                    (focusedSignupSlot model isFocused)
+                    [ focusedSignupSlot model isFocused ]
                 )
             , viewSignupForm signupSlot model isFocused
             ]
 
 
-focusedSignupSlot : Model -> Bool -> List (Html Msg)
+focusedSignupSlot : Model -> Bool -> Html Msg
 focusedSignupSlot model isFocused =
-    [ div [] [] ]
+    let
+        inputStrings =
+            [ model.currentNewSignupName, model.currentNewSignupEmail, model.currentNewSignupComment ]
+                |> List.map (Maybe.withDefault "")
+
+        allSignupInputBlank =
+            inputStrings
+                |> List.all String.isEmpty
+    in
+        if isFocused then
+            viewSignup
+                (Signup ""
+                    (Maybe.withDefault "" model.currentNewSignupEmail)
+                    (Maybe.withDefault "" model.currentNewSignupName)
+                    (Maybe.withDefault "" model.currentNewSignupComment)
+                )
+        else
+            div [] []
 
 
 popoverStateForSignupSlot : Model -> SignupSlot -> Popover.State
