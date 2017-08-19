@@ -126,7 +126,8 @@ update msg model =
             ( model, getSheetDetails model.sheetId )
 
         SubmitNewSignup ->
-            ( model, createSignup model )
+            Debug.log ("submitting new signup")
+                ( model, createSignup model )
 
         ReceiveSignupResponse (Err err) ->
             log (toString err)
@@ -325,7 +326,10 @@ viewSignupSlot signupSlot model =
                     (viewSignupsForSlot signupSlot model.signups)
                     [ focusedSignupSlot model isFocused ]
                 )
-            , viewSignupForm signupSlot model isFocused
+            , if (isSignupSlotFull model signupSlot) then
+                div [] [ text "Slot full" ]
+              else
+                viewSignupForm signupSlot model isFocused
             ]
 
 
@@ -359,6 +363,16 @@ popoverStateForSignupSlot model signupSlot =
         |> Maybe.withDefault Popover.initialState
 
 
+isSignupSlotFull : Model -> SignupSlot -> Bool
+isSignupSlotFull model signupSlot =
+    if signupSlot.maxSignups == 0 then
+        False
+    else
+        signupsForSlot signupSlot model.signups
+            |> List.length
+            |> (<=) signupSlot.maxSignups
+
+
 viewSignupForm : SignupSlot -> Model -> Bool -> Html Msg
 viewSignupForm signupSlot model isFocused =
     div []
@@ -379,38 +393,43 @@ viewSignupForm signupSlot model isFocused =
             |> Popover.bottom
             |> Popover.titleH4 [] [ text "Join this slot" ]
             |> Popover.content []
-                [ div [ classList [ ( "signup-cell__form", True ), ( "signup-cell__form-focus", isFocused ) ] ]
-                    [ Form.form [ onSubmit SubmitNewSignup ]
-                        [ Form.group []
-                            [ Input.text
-                                [ Input.onInput EditNewSignupName
-                                , Input.attrs [ type_ "text", name "name", placeholder "Name", autofocus True, onInput EditNewSignupName, required True ]
-                                ]
-                            , Form.help [] [ text "Your name to sign up with" ]
-                            ]
-                        , Form.group []
-                            [ Input.email
-                                [ Input.onInput EditNewSignupEmail
-                                , Input.attrs [ type_ "email", name "email", placeholder "Email", required True ]
-                                ]
-                            , Form.help [] [ text "You will be emailed a confirmation to this address." ]
-                            ]
-                        , Form.group []
-                            [ Textarea.textarea
-                                [ Textarea.onInput EditNewSignupComment
-                                , Textarea.attrs [ name "comment", placeholder "Comment (optional)" ]
-                                ]
-                            , Form.help [] [ text "Anything other information you want to include" ]
-                            ]
-                        ]
-                    , div []
-                        [ Button.button [ Button.primary, Button.attrs [ type_ "submit" ] ] [ text "Sign up" ]
-                        , span [] [ text " or " ]
-                        , a [ href "javascript:void(0);", onClick (CancelSlotFocus signupSlot.id) ] [ text "cancel" ]
-                        ]
-                    ]
+                [ viewSignupRawForm signupSlot model isFocused
                 ]
             |> Popover.view (popoverStateForSignupSlot model signupSlot)
+        ]
+
+
+viewSignupRawForm : SignupSlot -> Model -> Bool -> Html Msg
+viewSignupRawForm signupSlot model isFocused =
+    div [ classList [ ( "signup-cell__form", True ), ( "signup-cell__form-focus", isFocused ) ] ]
+        [ Form.form [ onSubmit SubmitNewSignup ]
+            [ Form.group []
+                [ Input.text
+                    [ Input.onInput EditNewSignupName
+                    , Input.attrs [ type_ "text", name "name", placeholder "Name", autofocus True, onInput EditNewSignupName, required True ]
+                    ]
+                , Form.help [] [ text "Your name to sign up with" ]
+                ]
+            , Form.group []
+                [ Input.email
+                    [ Input.onInput EditNewSignupEmail
+                    , Input.attrs [ type_ "email", name "email", placeholder "Email", required True ]
+                    ]
+                , Form.help [] [ text "You will be emailed a confirmation to this address." ]
+                ]
+            , Form.group []
+                [ Textarea.textarea
+                    [ Textarea.onInput EditNewSignupComment
+                    , Textarea.attrs [ name "comment", placeholder "Comment (optional)" ]
+                    ]
+                , Form.help [] [ text "Anything other information you want to include" ]
+                ]
+            , div []
+                [ Button.button [ Button.primary, Button.attrs [ type_ "submit" ] ] [ text "Sign up" ]
+                , span [] [ text " or " ]
+                , a [ href "javascript:void(0);", onClick (CancelSlotFocus signupSlot.id) ] [ text "cancel" ]
+                ]
+            ]
         ]
 
 
