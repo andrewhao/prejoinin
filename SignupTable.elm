@@ -15,11 +15,13 @@ import Json.Encode
 import Bootstrap.Grid as Grid
 import Bootstrap.Form as Form
 import Bootstrap.Form.Input as Input
+import Bootstrap.Form.Textarea as Textarea
 import Bootstrap.Button as Button
 import Bootstrap.Card as Card
 import Bootstrap.Form as Form
 import Bootstrap.Form.Input as Input
 import Bootstrap.Table as Table
+import Bootstrap.Popover as Popover
 
 
 -- MESSAGES
@@ -36,6 +38,7 @@ type Msg
     | EditNewSignupComment String
     | CancelSlotFocus SignupSlotID
     | SubmitNewSignup
+    | PopoverMsg String Popover.State
 
 
 type alias SheetID =
@@ -54,6 +57,12 @@ type alias SignupID =
     String
 
 
+type alias SignupSlotPopover =
+    { signupSlotId : SignupSlotID
+    , popoverState : Popover.State
+    }
+
+
 type alias Model =
     { sheetId : SheetID
     , title : String
@@ -66,6 +75,7 @@ type alias Model =
     , currentNewSignupName : Maybe String
     , currentNewSignupEmail : Maybe String
     , currentNewSignupComment : Maybe String
+    , signupSlotPopovers : List SignupSlotPopover
     }
 
 
@@ -90,12 +100,23 @@ init sheetId =
         Nothing
         Nothing
         Nothing
+        []
     , getSheetDetails sheetId
     )
 
 
 
 -- UPDATE
+
+
+initializeSignupSlotPopovers : List SignupSlot -> List SignupSlotPopover
+initializeSignupSlotPopovers signupSlotList =
+    List.map initializeSignupSlotPopover signupSlotList
+
+
+initializeSignupSlotPopover : SignupSlot -> SignupSlotPopover
+initializeSignupSlotPopover signupSlot =
+    { signupSlotId = signupSlot.id, popoverState = Popover.initialState }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -129,6 +150,7 @@ update msg model =
                 model.currentNewSignupName
                 model.currentNewSignupEmail
                 model.currentNewSignupComment
+                (initializeSignupSlotPopovers jsonResponse.signupSlots)
             , Cmd.none
             )
 
@@ -153,10 +175,31 @@ update msg model =
         EditNewSignupComment newComment ->
             ( { model | currentNewSignupComment = Just newComment }, Cmd.none )
 
-        CancelSlotFocus slotID ->
+        CancelSlotFocus slotId ->
             ( defocusSlot model
             , Cmd.none
             )
+
+        PopoverMsg slotId state ->
+            let
+                updatedSignupSlotPopovers =
+                    updateStateForPopoverInSlot state slotId model.signupSlotPopovers
+            in
+                { model | signupSlotPopovers = updatedSignupSlotPopovers }
+                    |> update (FocusSlotJoin slotId)
+
+
+updateStateForPopoverInSlot : Popover.State -> SignupSlotID -> List SignupSlotPopover -> List SignupSlotPopover
+updateStateForPopoverInSlot popoverState signupSlotId signupSlotPopoverList =
+    List.map
+        (\slotPopover ->
+            (if slotPopover.signupSlotId == signupSlotId then
+                { slotPopover | popoverState = popoverState }
+             else
+                { slotPopover | popoverState = Popover.initialState }
+            )
+        )
+        signupSlotPopoverList
 
 
 defocusSlot : Model -> Model
@@ -166,6 +209,7 @@ defocusSlot model =
         , currentNewSignupName = Nothing
         , currentNewSignupEmail = Nothing
         , currentNewSignupComment = Nothing
+        , signupSlotPopovers = initializeSignupSlotPopovers model.signupSlots
     }
 
 
@@ -212,7 +256,7 @@ viewTable : Model -> Html Msg
 viewTable model =
     div []
         [ Table.table
-            { options = [ Table.responsive ]
+            { options = []
             , thead = Table.thead [] [ viewTableColumnHeaderRow model.columns ]
             , tbody = Table.tbody [] (List.map (\row -> viewTableRow row model) model.rows)
             }
@@ -271,43 +315,62 @@ viewSignupSlot signupSlot model =
     in
         Table.td []
             [ div [ class "signup-cell__signups" ] (viewSignupsForSlot signupSlot model.signups)
-            , viewFocusedSignupForm signupSlot model isFocused
-            , viewSignupSlotJoinButton signupSlot model isFocused
+            , viewSignupForm signupSlot model isFocused
             ]
 
 
-viewFocusedSignupForm : SignupSlot -> Model -> Bool -> Html Msg
-viewFocusedSignupForm signupSlot model isFocused =
-    (if isFocused then
-        div [ class "signup-cell__form" ]
-            [ form [ onSubmit SubmitNewSignup ]
-                [ div [] [ input [ type_ "text", name "name", placeholder "Name", autofocus True, onInput EditNewSignupName, required True ] [] ]
-                , div [] [ input [ type_ "email", name "email", placeholder "Email", onInput EditNewSignupEmail, required True ] [] ]
-                , div [] [ textarea [ name "comment", placeholder "Comment (optional)", onInput EditNewSignupComment ] [] ]
-                , div []
-                    [ Button.button [ Button.small, Button.primary, Button.attrs [ type_ "submit" ] ] [ text "Sign up" ]
-                    , div [] [ text "or" ]
-                    , a [ href "javascript:void(0);", onClick (CancelSlotFocus signupSlot.id) ] [ text "cancel" ]
+popoverStateForSignupSlot : Model -> SignupSlot -> Popover.State
+popoverStateForSignupSlot model signupSlot =
+    List.filter (\ssp -> ssp.signupSlotId == signupSlot.id) model.signupSlotPopovers
+        |> List.head
+        |> Maybe.map .popoverState
+        |> Maybe.withDefault Popover.initialState
+
+
+viewSignupForm : SignupSlot -> Model -> Bool -> Html Msg
+viewSignupForm signupSlot model isFocused =
+    div []
+        [ Popover.config
+            (Button.button
+                [ Button.small
+                , Button.outlinePrimary
+                , Button.onClick (FocusSlotJoin signupSlot.id)
+                , Button.attrs
+                    (disabled signupSlot.closed
+                        :: Popover.onClick (popoverStateForSignupSlot model signupSlot) (PopoverMsg signupSlot.id)
+                    )
+                ]
+                [ text "Join →" ]
+            )
+            |> Popover.bottom
+            |> Popover.titleH4 [] [ text "Join this slot" ]
+            |> Popover.content []
+                [ div [ classList [ ( "signup-cell__form", True ), ( "signup-cell__form-focus", isFocused ) ] ]
+                    [ Form.form [ onSubmit SubmitNewSignup ]
+                        [ Form.group []
+                            [ Input.text
+                                [ Input.onInput EditNewSignupName
+                                , Input.attrs [ type_ "text", name "name", placeholder "Name", autofocus True, onInput EditNewSignupName, required True ]
+                                ]
+                            , Input.email
+                                [ Input.onInput EditNewSignupEmail
+                                , Input.attrs [ type_ "email", name "email", placeholder "Email", required True ]
+                                ]
+                            , Textarea.textarea
+                                [ Textarea.onInput EditNewSignupComment
+                                , Textarea.attrs [ name "comment", placeholder "Comment (optional)" ]
+                                ]
+                            ]
+                        , div []
+                            [ Button.button [ Button.small, Button.primary, Button.attrs [ type_ "submit" ] ] [ text "Sign up" ]
+                            , span [] [ text " or " ]
+                            , a [ href "javascript:void(0);", onClick (CancelSlotFocus signupSlot.id) ] [ text "cancel" ]
+                            ]
+                        ]
                     ]
                 ]
-            ]
-     else
-        div [] []
-    )
-
-
-viewSignupSlotJoinButton : SignupSlot -> Model -> Bool -> Html Msg
-viewSignupSlotJoinButton signupSlot model isFocused =
-    if isFocused then
-        div [] []
-    else
-        Button.button
-            [ Button.small
-            , Button.outlinePrimary
-            , Button.onClick (FocusSlotJoin signupSlot.id)
-            , Button.attrs [ disabled signupSlot.closed ]
-            ]
-            [ text "Join →" ]
+            |> Popover.view (popoverStateForSignupSlot model signupSlot)
+        ]
 
 
 viewSignupSlotValue : Maybe SignupSlot -> String
