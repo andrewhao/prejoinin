@@ -126,7 +126,8 @@ update msg model =
             ( model, getSheetDetails model.sheetId )
 
         SubmitNewSignup ->
-            ( model, createSignup model )
+            Debug.log ("submitting new signup")
+                ( model, createSignup model )
 
         ReceiveSignupResponse (Err err) ->
             log (toString err)
@@ -224,9 +225,11 @@ view model =
         [ Grid.row []
             [ Grid.col []
                 [ viewDevelopmentDebugHeader model
-                , h1 [] [ text (model.title) ]
-                , p [] [ text (model.description) ]
-                , viewTable model
+                , div [ class "sheet" ]
+                    [ h1 [ class "sheet__title" ] [ text (model.title) ]
+                    , p [ class "sheet__description" ] [ text (model.description) ]
+                    , viewTable model
+                    ]
                 ]
             ]
         ]
@@ -254,13 +257,11 @@ viewDevelopmentDebugHeader model =
 
 viewTable : Model -> Html Msg
 viewTable model =
-    div []
-        [ Table.table
-            { options = []
-            , thead = Table.thead [] [ viewTableColumnHeaderRow model.columns ]
-            , tbody = Table.tbody [] (List.map (\row -> viewTableRow row model) model.rows)
-            }
-        ]
+    Table.table
+        { options = [ Table.attr <| class "signup-table" ]
+        , thead = Table.thead [] [ viewTableColumnHeaderRow model.columns ]
+        , tbody = Table.tbody [] (List.map (viewTableRow model) model.rows)
+        }
 
 
 sortByPosition : List (Sortable a) -> List (Sortable a)
@@ -275,12 +276,12 @@ viewTableColumnHeaderRow columnList =
 
 viewColumnHeader : Column -> Table.Cell Msg
 viewColumnHeader column =
-    Table.th []
+    Table.th [ Table.cellAttr <| class "signup-table__column-header signup-table__header" ]
         [ text column.value ]
 
 
-viewTableRow : Row -> Model -> Table.Row Msg
-viewTableRow row model =
+viewTableRow : Model -> Row -> Table.Row Msg
+viewTableRow model row =
     let
         signupSlotList =
             model.signupSlots
@@ -290,7 +291,7 @@ viewTableRow row model =
     in
         Table.tr []
             (List.append
-                [ (Table.th [] [ text row.value ]) ]
+                [ (Table.th [ Table.cellAttr <| class "signup-table__row-header signup-table__header" ] [ text row.value ]) ]
                 (viewRowSlots row model)
             )
 
@@ -313,10 +314,47 @@ viewSignupSlot signupSlot model =
         isFocused =
             model.focusedSlotId == Just signupSlot.id
     in
-        Table.td []
-            [ div [ class "signup-cell__signups" ] (viewSignupsForSlot signupSlot model.signups)
-            , viewSignupForm signupSlot model isFocused
+        Table.td
+            [ Table.cellAttr <|
+                classList
+                    [ ( "signup-table__cell", True )
+                    , ( "signup-table__cell--focused", isFocused )
+                    ]
             ]
+            [ div [ class "signup-cell__signup-list" ]
+                (List.append
+                    (viewSignupsForSlot signupSlot model.signups)
+                    [ focusedSignupSlot model isFocused ]
+                )
+            , if (isSignupSlotFull model signupSlot) then
+                div [ class "signup-table__cell-info--full signup-table__cell-info" ] [ text "Slot full" ]
+              else if (isSignupSlotClosed signupSlot) then
+                div [ class "signup-table__cell-info--closed signup-table__cell-info" ] [ text "Slot closed" ]
+              else
+                viewSignupForm signupSlot model isFocused
+            ]
+
+
+focusedSignupSlot : Model -> Bool -> Html Msg
+focusedSignupSlot model isFocused =
+    let
+        inputStrings =
+            [ model.currentNewSignupName, model.currentNewSignupEmail, model.currentNewSignupComment ]
+                |> List.map (Maybe.withDefault "")
+
+        allSignupInputBlank =
+            inputStrings
+                |> List.all String.isEmpty
+    in
+        if isFocused then
+            viewSignup
+                (Signup ""
+                    (Maybe.withDefault "" model.currentNewSignupEmail)
+                    (Maybe.withDefault "" model.currentNewSignupName)
+                    (Maybe.withDefault "" model.currentNewSignupComment)
+                )
+        else
+            div [] []
 
 
 popoverStateForSignupSlot : Model -> SignupSlot -> Popover.State
@@ -327,6 +365,21 @@ popoverStateForSignupSlot model signupSlot =
         |> Maybe.withDefault Popover.initialState
 
 
+isSignupSlotFull : Model -> SignupSlot -> Bool
+isSignupSlotFull model signupSlot =
+    if signupSlot.maxSignups == 0 then
+        False
+    else
+        signupsForSlot signupSlot model.signups
+            |> List.length
+            |> (<=) signupSlot.maxSignups
+
+
+isSignupSlotClosed : SignupSlot -> Bool
+isSignupSlotClosed signupSlot =
+    signupSlot.closed
+
+
 viewSignupForm : SignupSlot -> Model -> Bool -> Html Msg
 viewSignupForm signupSlot model isFocused =
     div []
@@ -334,53 +387,56 @@ viewSignupForm signupSlot model isFocused =
             (Button.button
                 [ Button.small
                 , Button.outlinePrimary
+                , Button.block
                 , Button.onClick (FocusSlotJoin signupSlot.id)
-                , Button.attrs
-                    (disabled signupSlot.closed
-                        :: Popover.onClick (popoverStateForSignupSlot model signupSlot) (PopoverMsg signupSlot.id)
-                    )
+                , Button.attrs <|
+                    Popover.onClick
+                        (popoverStateForSignupSlot model signupSlot)
+                        (PopoverMsg signupSlot.id)
                 ]
                 [ text "Join →" ]
             )
             |> Popover.bottom
             |> Popover.titleH4 [] [ text "Join this slot" ]
             |> Popover.content []
-                [ div [ classList [ ( "signup-cell__form", True ), ( "signup-cell__form-focus", isFocused ) ] ]
-                    [ Form.form [ onSubmit SubmitNewSignup ]
-                        [ Form.group []
-                            [ Input.text
-                                [ Input.onInput EditNewSignupName
-                                , Input.attrs [ type_ "text", name "name", placeholder "Name", autofocus True, onInput EditNewSignupName, required True ]
-                                ]
-                            , Input.email
-                                [ Input.onInput EditNewSignupEmail
-                                , Input.attrs [ type_ "email", name "email", placeholder "Email", required True ]
-                                ]
-                            , Textarea.textarea
-                                [ Textarea.onInput EditNewSignupComment
-                                , Textarea.attrs [ name "comment", placeholder "Comment (optional)" ]
-                                ]
-                            ]
-                        , div []
-                            [ Button.button [ Button.small, Button.primary, Button.attrs [ type_ "submit" ] ] [ text "Sign up" ]
-                            , span [] [ text " or " ]
-                            , a [ href "javascript:void(0);", onClick (CancelSlotFocus signupSlot.id) ] [ text "cancel" ]
-                            ]
-                        ]
-                    ]
+                [ viewSignupRawForm signupSlot model isFocused
                 ]
             |> Popover.view (popoverStateForSignupSlot model signupSlot)
         ]
 
 
-viewSignupSlotValue : Maybe SignupSlot -> String
-viewSignupSlotValue signupSlotMaybe =
-    case signupSlotMaybe of
-        Just signupSlot ->
-            toString signupSlot.closed
-
-        Nothing ->
-            ""
+viewSignupRawForm : SignupSlot -> Model -> Bool -> Html Msg
+viewSignupRawForm signupSlot model isFocused =
+    div [ classList [ ( "signup-cell__form", True ), ( "signup-cell__form-focus", isFocused ) ] ]
+        [ Form.form [ onSubmit SubmitNewSignup ]
+            [ Form.group []
+                [ Input.text
+                    [ Input.onInput EditNewSignupName
+                    , Input.attrs [ type_ "text", name "name", placeholder "Name", autofocus True, onInput EditNewSignupName, required True ]
+                    ]
+                , Form.help [] [ text "Your name to sign up with" ]
+                ]
+            , Form.group []
+                [ Input.email
+                    [ Input.onInput EditNewSignupEmail
+                    , Input.attrs [ type_ "email", name "email", placeholder "Email", required True ]
+                    ]
+                , Form.help [] [ text "You will be emailed a confirmation to this address." ]
+                ]
+            , Form.group []
+                [ Textarea.textarea
+                    [ Textarea.onInput EditNewSignupComment
+                    , Textarea.attrs [ name "comment", placeholder "Comment (optional)" ]
+                    ]
+                , Form.help [] [ text "Anything other information you want to include" ]
+                ]
+            , div []
+                [ Button.button [ Button.primary, Button.attrs [ type_ "submit" ] ] [ text "Sign up" ]
+                , span [] [ text " or " ]
+                , a [ href "javascript:void(0);", onClick (CancelSlotFocus signupSlot.id) ] [ text "cancel" ]
+                ]
+            ]
+        ]
 
 
 viewSignupsForSlot : SignupSlot -> List Signup -> List (Html Msg)
@@ -402,7 +458,7 @@ viewSignup signup =
                 (signup.name ++ " (" ++ signup.comment ++ ")")
             )
     in
-        div [] [ text signupText ]
+        div [ class "signup-table__signup" ] [ text signupText ]
 
 
 signupsForSlot : SignupSlot -> List Signup -> List Signup

@@ -1,0 +1,12 @@
+$sheet-bgcolor: #FFFFFF;
+.sheet {
+  background-color: $sheet-bgcolor;
+  padding: 1rem;
+  margin-top: 1rem;
+
+  &__title {
+    font-style: italic;
+    color: #cc4c2b;
+    font-family: Georgia, serif;
+  }
+}
