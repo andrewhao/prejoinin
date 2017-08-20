@@ -327,7 +327,9 @@ viewSignupSlot signupSlot model =
                     [ focusedSignupSlot model isFocused ]
                 )
             , if (isSignupSlotFull model signupSlot) then
-                div [] [ text "Slot full" ]
+                div [ class "signup-table__cell-info--full signup-table__cell-info" ] [ text "Slot full" ]
+              else if (isSignupSlotClosed signupSlot) then
+                div [ class "signup-table__cell-info--closed signup-table__cell-info" ] [ text "Slot closed" ]
               else
                 viewSignupForm signupSlot model isFocused
             ]
@@ -373,6 +375,11 @@ isSignupSlotFull model signupSlot =
             |> (<=) signupSlot.maxSignups
 
 
+isSignupSlotClosed : SignupSlot -> Bool
+isSignupSlotClosed signupSlot =
+    signupSlot.closed
+
+
 viewSignupForm : SignupSlot -> Model -> Bool -> Html Msg
 viewSignupForm signupSlot model isFocused =
     div []
@@ -381,7 +388,6 @@ viewSignupForm signupSlot model isFocused =
                 [ Button.small
                 , Button.outlinePrimary
                 , Button.block
-                , Button.disabled signupSlot.closed
                 , Button.onClick (FocusSlotJoin signupSlot.id)
                 , Button.attrs <|
                     Popover.onClick

@@ -19,7 +19,6 @@ $signup-table-header-text-color: #FFFFFF;
 
   &__header {
     text-align: center;
-    vertical-align: middle;
   }
 
   &__cell {
@@ -31,5 +30,14 @@ $signup-table-header-text-color: #FFFFFF;
 
   &__signup {
     border-bottom: 1px dotted #AAA;
+  }
+
+  &.table {
+    td.signup-table__cell {
+      vertical-align: bottom;
+    }
+    th.signup-table__header {
+        vertical-align: middle;
+    }
   }
 }
