@@ -6,12 +6,13 @@ import Html exposing (..)
 import Html.Attributes exposing (autofocus, class, classList, disabled, for, href, name, placeholder, required, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
 import Http
-import Json.Decode exposing (Decoder, field, string, map4, map7)
+import Json.Decode exposing (Decoder, field, map4, map7, string)
 import Json.Encode
 
 
 -- Bootstrap style helpers
 
+import Bootstrap.ButtonGroup as ButtonGroup
 import Bootstrap.Grid as Grid
 import Bootstrap.Form as Form
 import Bootstrap.Form.Input as Input
@@ -22,6 +23,7 @@ import Bootstrap.Form as Form
 import Bootstrap.Form.Input as Input
 import Bootstrap.Table as Table
 import Bootstrap.Popover as Popover
+import Bootstrap.Button as Button
 
 
 -- MESSAGES
@@ -39,6 +41,7 @@ type Msg
     | CancelSlotFocus SignupSlotID
     | SubmitNewSignup
     | PopoverMsg String Popover.State
+    | ChangeFocusedColumn Column
 
 
 type alias SheetID =
@@ -63,6 +66,11 @@ type alias SignupSlotPopover =
     }
 
 
+type PageViewStyle
+    = CardView
+    | TableView
+
+
 type alias Model =
     { sheetId : SheetID
     , title : String
@@ -76,6 +84,8 @@ type alias Model =
     , currentNewSignupEmail : Maybe String
     , currentNewSignupComment : Maybe String
     , signupSlotPopovers : List SignupSlotPopover
+    , focusedColumn : Maybe Column
+    , viewStyle : PageViewStyle
     }
 
 
@@ -101,6 +111,8 @@ init sheetId =
         Nothing
         Nothing
         []
+        Nothing
+        CardView
     , getSheetDetails sheetId
     )
 
@@ -122,6 +134,9 @@ initializeSignupSlotPopover signupSlot =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        ChangeFocusedColumn column ->
+            ( { model | focusedColumn = Just column }, Cmd.none )
+
         FetchSheet ->
             ( model, getSheetDetails model.sheetId )
 
@@ -139,19 +154,15 @@ update msg model =
             )
 
         ReceiveSheetDetails (Ok jsonResponse) ->
-            ( Model
-                model.sheetId
-                jsonResponse.title
-                jsonResponse.description
-                jsonResponse.rows
-                jsonResponse.columns
-                jsonResponse.signupSlots
-                jsonResponse.signups
-                model.focusedSlotId
-                model.currentNewSignupName
-                model.currentNewSignupEmail
-                model.currentNewSignupComment
-                (initializeSignupSlotPopovers jsonResponse.signupSlots)
+            ( { model
+                | title = jsonResponse.title
+                , description = jsonResponse.description
+                , rows = jsonResponse.rows
+                , columns = jsonResponse.columns
+                , signupSlots = jsonResponse.signupSlots
+                , signups = jsonResponse.signups
+                , signupSlotPopovers = (initializeSignupSlotPopovers jsonResponse.signupSlots)
+              }
             , Cmd.none
             )
 
@@ -228,11 +239,98 @@ view model =
                 , div [ class "sheet" ]
                     [ h1 [ class "sheet__title" ] [ text (model.title) ]
                     , p [ class "sheet__description" ] [ text (model.description) ]
-                    , viewTable model
+                    , if model.viewStyle == CardView then
+                        viewCard model
+                      else
+                        viewTable model
                     ]
                 ]
             ]
         ]
+
+
+viewCard : Model -> Html Msg
+viewCard model =
+    div []
+        [ viewColumnSideScroller model
+        , viewCardList model
+        ]
+
+
+viewColumnSideScroller : Model -> Html Msg
+viewColumnSideScroller model =
+    div [ class "signup-side-scroller" ]
+        [ viewColumnsSideScrollerItems model ]
+
+
+viewColumnsSideScrollerItems : Model -> Html Msg
+viewColumnsSideScrollerItems model =
+    ButtonGroup.radioButtonGroup [ ButtonGroup.large ]
+        (List.map (viewColumnSideScrollerItem model) model.columns)
+
+
+viewColumnSideScrollerItem : Model -> Column -> ButtonGroup.RadioButtonItem Msg
+viewColumnSideScrollerItem model column =
+    ButtonGroup.radioButton (model.focusedColumn == Just column)
+        [ Button.secondary, Button.onClick <| ChangeFocusedColumn column ]
+        [ text column.value ]
+
+
+viewCardList : Model -> Html Msg
+viewCardList model =
+    let
+        signupSlots =
+            (signupSlotsForColumn model model.focusedColumn)
+    in
+        div [ class "signup-card-list" ]
+            (List.map (viewCardForSlot model) signupSlots)
+
+
+viewCardForSlot : Model -> SignupSlot -> Html Msg
+viewCardForSlot model signupSlot =
+    let
+        rowMaybe =
+            getRowForSlot signupSlot model.rows
+    in
+        case rowMaybe of
+            Just row ->
+                Card.config []
+                    |> Card.header [] [ text row.value ]
+                    |> Card.block []
+                        [ Card.text []
+                            (viewSignupsForSlot signupSlot model.signups)
+                        ]
+                    |> Card.view
+
+            Nothing ->
+                div [] []
+
+
+signupSlotsForColumn : Model -> Maybe Column -> List SignupSlot
+signupSlotsForColumn model selectedColumn =
+    case selectedColumn of
+        Just column ->
+            List.filter (\slot -> slot.columnId == column.id) model.signupSlots
+                |> sortSignupSlotsByRowOrder model
+
+        Nothing ->
+            []
+
+
+sortSignupSlotsByRowOrder : Model -> List SignupSlot -> List SignupSlot
+sortSignupSlotsByRowOrder model signupSlotList =
+    let
+        orderedRows =
+            sortByPosition model.rows
+    in
+        List.sortBy (\slot -> (Maybe.map .position (getRowForSlot slot model.rows)) |> Maybe.withDefault 0) signupSlotList
+
+
+getRowForSlot : SignupSlot -> List Row -> Maybe Row
+getRowForSlot signupSlot rowList =
+    rowList
+        |> List.filter (\row -> row.id == signupSlot.rowId)
+        |> List.head
 
 
 viewDevelopmentDebugHeader : Model -> Html Msg
