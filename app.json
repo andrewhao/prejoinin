@@ -6,6 +6,9 @@
   },
   "buildpacks": [
     {
+      "url": "https://github.com/heroku/heroku-buildpack-nodejs#v110"
+    },
+    {
       "url": "https://github.com/srid/heroku-buildpack-elm.git"
     },
     {
