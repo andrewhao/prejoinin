@@ -632,7 +632,7 @@ encodedSignupValue model =
 
 postNewSignup : Model -> Http.Request SignupJSONResponse
 postNewSignup model =
-    Http.post "//localhost:3000/api/v1/signups"
+    Http.post "//wejoinin.herokuapp.com/api/v1/signups"
         (Http.jsonBody (encodedSignupValue model))
         decodeSignupResponse
 
@@ -646,7 +646,7 @@ getSheetDetails : String -> Cmd Msg
 getSheetDetails sheetId =
     let
         url =
-            "//localhost:3000/api/v1/sheets/" ++ sheetId ++ ".json"
+            "//wejoinin.herokuapp.com/api/v1/sheets/" ++ sheetId ++ ".json"
     in
         log url
             Http.send
