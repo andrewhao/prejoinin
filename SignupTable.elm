@@ -42,6 +42,7 @@ type Msg
     | SubmitNewSignup
     | PopoverMsg String Popover.State
     | ChangeFocusedColumn Column
+    | ChangeViewStyle PageViewStyle
 
 
 type alias SheetID =
@@ -134,6 +135,9 @@ initializeSignupSlotPopover signupSlot =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        ChangeViewStyle viewStyle ->
+            ( { model | viewStyle = viewStyle }, Cmd.none )
+
         ChangeFocusedColumn column ->
             ( { model | focusedColumn = Just column }, Cmd.none )
 
@@ -162,6 +166,7 @@ update msg model =
                 , signupSlots = jsonResponse.signupSlots
                 , signups = jsonResponse.signups
                 , signupSlotPopovers = (initializeSignupSlotPopovers jsonResponse.signupSlots)
+                , focusedColumn = List.head jsonResponse.columns
               }
             , Cmd.none
             )
@@ -259,7 +264,7 @@ viewCard model =
 
 viewColumnSideScroller : Model -> Html Msg
 viewColumnSideScroller model =
-    div [ class "signup-side-scroller" ]
+    div [ class "side-scroller" ]
         [ viewColumnsSideScrollerItems model ]
 
 
@@ -298,7 +303,7 @@ viewCardForSlot model signupSlot =
                     |> Card.header [] [ text row.value ]
                     |> Card.block []
                         [ Card.text []
-                            (viewSignupsForSlot signupSlot model.signups)
+                            [ viewSignupSlotAsCard model signupSlot ]
                         ]
                     |> Card.view
 
@@ -335,22 +340,34 @@ getRowForSlot signupSlot rowList =
 
 viewDevelopmentDebugHeader : Model -> Html Msg
 viewDevelopmentDebugHeader model =
-    Card.config []
-        |> Card.header []
-            [ text "DEVELOPMENT MODE" ]
-        |> Card.block []
-            [ Card.text []
-                [ Form.form []
-                    [ Form.group []
-                        [ Form.label [ for "dev_sheet_id" ] [ text "Sheet ID" ]
-                        , Input.text [ Input.id "dev_sheet_id", Input.onInput ChangeSheetID, Input.value model.sheetId ]
-                        , Form.help [] [ text "Sheet ID you wish to query for" ]
-                        , Button.button [ Button.primary, Button.onClick FetchSheet ] [ text "Fetch" ]
+    Card.group
+        [ Card.config []
+            |> Card.header []
+                [ text "Select sheet" ]
+            |> Card.block []
+                [ Card.text []
+                    [ Form.form []
+                        [ Form.group []
+                            [ Form.label [ for "dev_sheet_id" ] [ text "Sheet ID" ]
+                            , Input.text [ Input.id "dev_sheet_id", Input.onInput ChangeSheetID, Input.value model.sheetId ]
+                            , Form.help [] [ text "Sheet ID you wish to query for: /sheets/:sheet_id" ]
+                            , Button.button [ Button.primary, Button.onClick FetchSheet ] [ text "Fetch" ]
+                            ]
                         ]
                     ]
                 ]
-            ]
-        |> Card.view
+        , Card.config []
+            |> Card.header []
+                [ text "View style" ]
+            |> Card.block []
+                [ Card.text []
+                    [ ButtonGroup.radioButtonGroup []
+                        [ ButtonGroup.radioButton (model.viewStyle == CardView) [ Button.primary, Button.onClick <| ChangeViewStyle CardView ] [ text "Cards" ]
+                        , ButtonGroup.radioButton (model.viewStyle == TableView) [ Button.primary, Button.onClick <| ChangeViewStyle TableView ] [ text "Table" ]
+                        ]
+                    ]
+                ]
+        ]
 
 
 viewTable : Model -> Html Msg
@@ -428,6 +445,32 @@ viewSignupSlot signupSlot model =
                 div [ class "signup-table__cell-info--full signup-table__cell-info" ] [ text "Slot full" ]
               else if (isSignupSlotClosed signupSlot) then
                 div [ class "signup-table__cell-info--closed signup-table__cell-info" ] [ text "Slot closed" ]
+              else
+                viewSignupForm signupSlot model isFocused
+            ]
+
+
+viewSignupSlotAsCard : Model -> SignupSlot -> Html Msg
+viewSignupSlotAsCard model signupSlot =
+    let
+        isFocused =
+            model.focusedSlotId == Just signupSlot.id
+    in
+        div
+            [ classList
+                [ ( "signup-card", True )
+                , ( "signup-card--focused", isFocused )
+                ]
+            ]
+            [ div [ class "signup-card__signup-list" ]
+                (List.append
+                    (viewSignupsForSlot signupSlot model.signups)
+                    [ focusedSignupSlot model isFocused ]
+                )
+            , if (isSignupSlotFull model signupSlot) then
+                div [ class "signup-card__info--full signup-card__info" ] [ text "Slot full" ]
+              else if (isSignupSlotClosed signupSlot) then
+                div [ class "signup-card__info--closed signup-card__info" ] [ text "Slot closed" ]
               else
                 viewSignupForm signupSlot model isFocused
             ]
