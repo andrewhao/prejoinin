@@ -15,6 +15,9 @@
     "npm-run-all": "4.0.2",
     "postcss-cli": "4.1.0"
   },
+  "engines": {
+    "node": "^8.4.0"
+  },
   "scripts": {
      "build-task:scss-compile": "node-sass-chokidar --source-map true scss/ -o dist/css",
     "build-task:autoprefixer": "postcss dist/css/*.css --use autoprefixer -d dist/css",
