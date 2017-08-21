@@ -1,0 +1,35 @@
+$signup-card-list-col-header-color: #98562e;
+$signup-card-list-row-header-color: #b17f5c;
+$signup-card-list-cell-color: #f1e4c2;
+$signup-card-list-focused-cell-color: darken($signup-card-list-cell-color, 10%);
+$signup-card-list-header-text-color: #FFFFFF;
+
+.signup-card-list {
+  &__column-header {
+    background-color: $signup-card-list-col-header-color;
+    color: $signup-card-list-header-text-color
+  }
+
+  &__row-header {
+    background-color: $signup-card-list-row-header-color;
+    color: $signup-card-list-header-text-color;
+    &:first-child {
+      border-radius: 0;
+    }
+  }
+
+  &__header {
+    text-align: center;
+  }
+
+  &__card {
+    margin-top: 1rem;
+    border-radius: 0;
+  }
+  &__card-body {
+    background-color: $signup-table-cell-color;
+    &--focused {
+      background-color: $signup-table-focused-cell-color;
+    }
+  }
+}

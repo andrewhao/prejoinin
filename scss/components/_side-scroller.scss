@@ -1,4 +1,23 @@
 $sheet-bgcolor: #FFFFFF;
+$signup-card-list-col-header-color: lighten(#98562e, 50%);
+$signup-card-list-col-header-color-active: #98562e;
+$signup-card-list-header-text-color: #FFFFFF;
+
 .side-scroller {
   overflow-x: scroll;
+
+  // Temporary !important as an override
+  .btn {
+    border-radius: 0 !important;
+    background-color: $signup-card-list-col-header-color;
+    color: $signup-card-list-col-header-color-active;
+    border-color: $signup-card-list-col-header-color-active;
+    padding: 0.75rem;
+    font-size: 1.3rem;
+    min-width: 8rem;
+  }
+  .active {
+    color: $signup-card-list-header-text-color;
+    background-color: $signup-card-list-col-header-color-active;
+  }
 }
