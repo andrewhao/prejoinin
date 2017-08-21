@@ -24,6 +24,7 @@ import Bootstrap.Form.Input as Input
 import Bootstrap.Table as Table
 import Bootstrap.Popover as Popover
 import Bootstrap.Button as Button
+import Bootstrap.Modal as Modal
 
 
 -- MESSAGES
@@ -40,7 +41,8 @@ type Msg
     | EditNewSignupComment String
     | CancelSlotFocus SignupSlotID
     | SubmitNewSignup
-    | PopoverMsg String Popover.State
+    | PopoverMsg SignupSlotID Popover.State
+    | ModalMsg SignupSlotID Modal.State
     | ChangeFocusedColumn Column
     | ChangeViewStyle PageViewStyle
 
@@ -67,6 +69,12 @@ type alias SignupSlotPopover =
     }
 
 
+type alias SignupSlotModal =
+    { signupSlotId : SignupSlotID
+    , modalState : Modal.State
+    }
+
+
 type PageViewStyle
     = CardView
     | TableView
@@ -85,6 +93,7 @@ type alias Model =
     , currentNewSignupEmail : Maybe String
     , currentNewSignupComment : Maybe String
     , signupSlotPopovers : List SignupSlotPopover
+    , signupSlotModals : List SignupSlotModal
     , focusedColumn : Maybe Column
     , viewStyle : PageViewStyle
     }
@@ -112,6 +121,7 @@ init sheetId =
         Nothing
         Nothing
         []
+        []
         Nothing
         CardView
     , getSheetDetails sheetId
@@ -130,6 +140,16 @@ initializeSignupSlotPopovers signupSlotList =
 initializeSignupSlotPopover : SignupSlot -> SignupSlotPopover
 initializeSignupSlotPopover signupSlot =
     { signupSlotId = signupSlot.id, popoverState = Popover.initialState }
+
+
+initializeSignupSlotModals : List SignupSlot -> List SignupSlotModal
+initializeSignupSlotModals signupSlotList =
+    List.map initializeSignupSlotModal signupSlotList
+
+
+initializeSignupSlotModal : SignupSlot -> SignupSlotModal
+initializeSignupSlotModal signupSlot =
+    { signupSlotId = signupSlot.id, modalState = Modal.hiddenState }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -166,6 +186,7 @@ update msg model =
                 , signupSlots = jsonResponse.signupSlots
                 , signups = jsonResponse.signups
                 , signupSlotPopovers = (initializeSignupSlotPopovers jsonResponse.signupSlots)
+                , signupSlotModals = (initializeSignupSlotModals jsonResponse.signupSlots)
                 , focusedColumn = List.head jsonResponse.columns
               }
             , Cmd.none
@@ -205,6 +226,14 @@ update msg model =
                 { model | signupSlotPopovers = updatedSignupSlotPopovers }
                     |> update (FocusSlotJoin slotId)
 
+        ModalMsg slotId state ->
+            let
+                updatedSignupSlotModals =
+                    updateStateForModalInSlot state slotId model.signupSlotModals
+            in
+                { model | signupSlotModals = updatedSignupSlotModals }
+                    |> update (FocusSlotJoin slotId)
+
 
 updateStateForPopoverInSlot : Popover.State -> SignupSlotID -> List SignupSlotPopover -> List SignupSlotPopover
 updateStateForPopoverInSlot popoverState signupSlotId signupSlotPopoverList =
@@ -217,6 +246,19 @@ updateStateForPopoverInSlot popoverState signupSlotId signupSlotPopoverList =
             )
         )
         signupSlotPopoverList
+
+
+updateStateForModalInSlot : Modal.State -> SignupSlotID -> List SignupSlotModal -> List SignupSlotModal
+updateStateForModalInSlot modalState signupSlotId signupSlotModalList =
+    List.map
+        (\slotModal ->
+            (if slotModal.signupSlotId == signupSlotId then
+                { slotModal | modalState = modalState }
+             else
+                { slotModal | modalState = Modal.hiddenState }
+            )
+        )
+        signupSlotModalList
 
 
 defocusSlot : Model -> Model
@@ -335,6 +377,13 @@ getRowForSlot : SignupSlot -> List Row -> Maybe Row
 getRowForSlot signupSlot rowList =
     rowList
         |> List.filter (\row -> row.id == signupSlot.rowId)
+        |> List.head
+
+
+getColumnForSlot : SignupSlot -> List Column -> Maybe Column
+getColumnForSlot signupSlot columnList =
+    columnList
+        |> List.filter (\column -> column.id == signupSlot.columnId)
         |> List.head
 
 
@@ -472,7 +521,7 @@ viewSignupSlotAsCard model signupSlot =
               else if (isSignupSlotClosed signupSlot) then
                 div [ class "signup-card__info--closed signup-card__info" ] [ text "Slot closed" ]
               else
-                viewSignupForm signupSlot model isFocused
+                viewSignupFormAsModal signupSlot model isFocused
             ]
 
 
@@ -504,6 +553,14 @@ popoverStateForSignupSlot model signupSlot =
         |> List.head
         |> Maybe.map .popoverState
         |> Maybe.withDefault Popover.initialState
+
+
+modalStateForSignupSlot : Model -> SignupSlot -> Modal.State
+modalStateForSignupSlot model signupSlot =
+    List.filter (\ssp -> ssp.signupSlotId == signupSlot.id) model.signupSlotModals
+        |> List.head
+        |> Maybe.map .modalState
+        |> Maybe.withDefault Modal.hiddenState
 
 
 isSignupSlotFull : Model -> SignupSlot -> Bool
@@ -538,11 +595,35 @@ viewSignupForm signupSlot model isFocused =
                 [ text "Join →" ]
             )
             |> Popover.bottom
-            |> Popover.titleH4 [] [ text "Join this slot" ]
+            |> Popover.titleH3 [] [ text ("Join this slot: " ++ (viewSignupSlotTitle model signupSlot)) ]
             |> Popover.content []
                 [ viewSignupRawForm signupSlot model isFocused
                 ]
             |> Popover.view (popoverStateForSignupSlot model signupSlot)
+        ]
+
+
+viewSignupFormAsModal : SignupSlot -> Model -> Bool -> Html Msg
+viewSignupFormAsModal signupSlot model isFocused =
+    div []
+        [ (Button.button
+            [ Button.small
+            , Button.outlinePrimary
+            , Button.block
+            , Button.onClick (FocusSlotJoin signupSlot.id)
+            , Button.attrs
+                [ onClick <| ModalMsg signupSlot.id Modal.visibleState
+                ]
+            ]
+            [ text "Join →" ]
+          )
+        , Modal.config (ModalMsg signupSlot.id)
+            |> Modal.large
+            |> Modal.h3 [] [ text ("Join this slot: " ++ (viewSignupSlotTitle model signupSlot)) ]
+            |> Modal.body []
+                [ viewSignupRawForm signupSlot model isFocused
+                ]
+            |> Modal.view (modalStateForSignupSlot model signupSlot)
         ]
 
 
@@ -600,6 +681,15 @@ viewSignup signup =
             )
     in
         div [ class "signup-table__signup" ] [ text signupText ]
+
+
+viewSignupSlotTitle : Model -> SignupSlot -> String
+viewSignupSlotTitle model signupSlot =
+    [ getColumnForSlot signupSlot model.columns, getRowForSlot signupSlot model.rows ]
+        |> List.filter (\headerMaybe -> headerMaybe /= Nothing)
+        |> List.map (Maybe.map .value)
+        |> List.map (Maybe.withDefault "")
+        |> String.join ", "
 
 
 signupsForSlot : SignupSlot -> List Signup -> List Signup
