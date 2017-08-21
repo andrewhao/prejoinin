@@ -3,6 +3,6 @@
   "clean_urls": true,
   "routes": {
     "/dist/js/app.js": "/js/app.js",
-    "/dist/css/application.css": "/css/application.js"
+    "/dist/css/application.css": "/css/application.css"
   }
 }
