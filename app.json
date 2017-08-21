@@ -2,7 +2,7 @@
   "name": "Prejoinin",
   "repository": "https://github.com/andrewhao/prejoinin",
   "env": {
-    "ELM_COMPILE": "npm run sass:build elm-build"
+    "ELM_COMPILE": "npm run sass:build elm:build"
   },
   "buildpacks": [
     {
