@@ -32,6 +32,10 @@ Else, if you want to use Elm Reactor (dev server) with its awesome time travel d
 
 TBD
 
+## Staging on Heroku
+
+Deploys to https://wejoinin-ui.herokuapp.com
+
 ## Production deploy
 
 TBD
