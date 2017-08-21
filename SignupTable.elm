@@ -165,12 +165,10 @@ update msg model =
             ( model, getSheetDetails model.sheetId )
 
         SubmitNewSignup ->
-            Debug.log ("submitting new signup")
-                ( model, createSignup model )
+            ( model, createSignup model )
 
         ReceiveSignupResponse (Err err) ->
-            log (toString err)
-                ( model, Cmd.none )
+            ( model, Cmd.none )
 
         ReceiveSignupResponse (Ok jsonResponse) ->
             ( model |> defocusSlot
@@ -269,6 +267,7 @@ defocusSlot model =
         , currentNewSignupEmail = Nothing
         , currentNewSignupComment = Nothing
         , signupSlotPopovers = initializeSignupSlotPopovers model.signupSlots
+        , signupSlotModals = initializeSignupSlotModals model.signupSlots
     }
 
 
@@ -319,7 +318,7 @@ viewColumnsSideScrollerItems model =
 viewColumnSideScrollerItem : Model -> Column -> ButtonGroup.RadioButtonItem Msg
 viewColumnSideScrollerItem model column =
     ButtonGroup.radioButton (model.focusedColumn == Just column)
-        [ Button.secondary, Button.onClick <| ChangeFocusedColumn column ]
+        [ Button.outlinePrimary, Button.onClick <| ChangeFocusedColumn column ]
         [ text column.value ]
 
 
@@ -341,9 +340,9 @@ viewCardForSlot model signupSlot =
     in
         case rowMaybe of
             Just row ->
-                Card.config []
-                    |> Card.header [] [ text row.value ]
-                    |> Card.block []
+                Card.config [ Card.attrs [ class "signup-card-list__card" ] ]
+                    |> Card.header [ class "signup-card-list__row-header" ] [ text row.value ]
+                    |> Card.block [ Card.blockAttrs [ class "signup-card-list__card-body" ] ]
                         [ Card.text []
                             [ viewSignupSlotAsCard model signupSlot ]
                         ]
