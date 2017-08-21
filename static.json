@@ -2,6 +2,7 @@
   "root": "dist/",
   "clean_urls": true,
   "routes": {
-    "/dist/**": "/"
+    "/dist/js/app.js": "/js/app.js",
+    "/dist/css/application.css": "/css/application.js"
   }
 }
