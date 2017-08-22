@@ -10,6 +10,8 @@
   <body>
     <div id="wejoinin-root"></div>
     <script src="/dist/js/app.js"></script>
-    <script>Elm.Main.embed(document.querySelector("#wejoinin-root"));</script>
+    <script>
+      Elm.Main.embed(document.querySelector("#wejoinin-root"), { sheetId: null, apiBaseEndpoint: "https://localhost:3000", productionMode: false});
+    </script>
   </body>
 </html>
