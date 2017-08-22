@@ -15,6 +15,10 @@ SignupTable.elm  -- Table widget Elm program
 Data/
   Sheet.elm      -- Necessary types for domain models and JSON decoding capabilities
 index.html       -- Wrapper HTML file that loads stylesheets and bootstraps the app.
+dist/
+  index.html     -- Compiled HTML wrapper
+  js/app.js      -- Compiled JS app
+  css/application.css -- Compiled CSS
 ```
 
 ## Developing the app
@@ -27,6 +31,20 @@ Else, if you want to use Elm Reactor (dev server) with its awesome time travel d
 
     $ elm Reactor
     $ open http://localhost:8000
+
+## JS interface
+
+This app can be embedded in the following way:
+
+```html
+<body>
+  <div id="wejoinin-root"></div>
+  <script src="/dist/js/app.js"></script>
+  <script>Elm.Main.embed(document.querySelector("#wejoinin-root"));</script>
+</body>
+```
+
+It is packaged as an [npm package](https://www.npmjs.com/package/prejoinin). Your app should embed `
 
 ## Tests
 
