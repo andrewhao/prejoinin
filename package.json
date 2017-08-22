@@ -16,6 +16,9 @@
   "engines": {
     "node": "^8.4.0"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build-task:scss-compile": "node-sass-chokidar --source-map true scss/ -o dist/css",
     "build-task:autoprefixer": "postcss dist/css/*.css --use autoprefixer -d dist/css",
