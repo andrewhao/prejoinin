@@ -1,7 +1,6 @@
-module SignupTable exposing (Msg(..), Model, init, update, view, subscriptions)
+module SignupTable exposing (Msg(..), Model, Flags, init, update, view, subscriptions)
 
 import Data.Sheet exposing (Column, Row, SheetJSONResponse, Signup, SignupJSONResponse, SignupSlot, decodeColumns, decodeRows, decodeSignupSlots, decodeSignups)
-import Debug exposing (log)
 import Html exposing (..)
 import Html.Attributes exposing (autofocus, class, classList, disabled, for, href, name, placeholder, required, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
@@ -25,6 +24,8 @@ import Bootstrap.Table as Table
 import Bootstrap.Popover as Popover
 import Bootstrap.Button as Button
 import Bootstrap.Modal as Modal
+import Bootstrap.Progress as Progress
+import Bootstrap.Alert as Alert
 
 
 -- MESSAGES
@@ -81,7 +82,8 @@ type PageViewStyle
 
 
 type alias Model =
-    { sheetId : SheetID
+    { sheetId : Maybe SheetID
+    , apiBaseEndpoint : String
     , title : String
     , description : String
     , rows : List Row
@@ -96,6 +98,9 @@ type alias Model =
     , signupSlotModals : List SignupSlotModal
     , focusedColumn : Maybe Column
     , viewStyle : PageViewStyle
+    , isSheetLoading : Bool
+    , isSheetError : Bool
+    , isProductionMode : Bool
     }
 
 
@@ -103,13 +108,21 @@ type alias Sortable a =
     { a | position : Int }
 
 
+type alias Flags =
+    { sheetId : Maybe SheetID
+    , apiBaseEndpoint : String
+    , productionMode : Bool
+    }
+
+
 
 -- INIT
 
 
-init : String -> ( Model, Cmd Msg )
-init sheetId =
-    ( Model sheetId
+init : Flags -> ( Model, Cmd Msg )
+init flags =
+    ( Model flags.sheetId
+        flags.apiBaseEndpoint
         ""
         ""
         []
@@ -124,12 +137,11 @@ init sheetId =
         []
         Nothing
         CardView
-    , getSheetDetails sheetId
+        False
+        False
+        False
+    , getSheetDetails flags.apiBaseEndpoint flags.sheetId
     )
-
-
-
--- UPDATE
 
 
 initializeSignupSlotPopovers : List SignupSlot -> List SignupSlotPopover
@@ -152,6 +164,10 @@ initializeSignupSlotModal signupSlot =
     { signupSlotId = signupSlot.id, modalState = Modal.hiddenState }
 
 
+
+-- UPDATE
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -162,7 +178,7 @@ update msg model =
             ( { model | focusedColumn = Just column }, Cmd.none )
 
         FetchSheet ->
-            ( model, getSheetDetails model.sheetId )
+            ( { model | isSheetLoading = True }, getSheetDetails model.apiBaseEndpoint model.sheetId )
 
         SubmitNewSignup ->
             ( model, createSignup model )
@@ -172,7 +188,7 @@ update msg model =
 
         ReceiveSignupResponse (Ok jsonResponse) ->
             ( model |> defocusSlot
-            , getSheetDetails model.sheetId
+            , getSheetDetails model.apiBaseEndpoint model.sheetId
             )
 
         ReceiveSheetDetails (Ok jsonResponse) ->
@@ -186,16 +202,17 @@ update msg model =
                 , signupSlotPopovers = (initializeSignupSlotPopovers jsonResponse.signupSlots)
                 , signupSlotModals = (initializeSignupSlotModals jsonResponse.signupSlots)
                 , focusedColumn = List.head jsonResponse.columns
+                , isSheetLoading = False
+                , isSheetError = False
               }
             , Cmd.none
             )
 
         ReceiveSheetDetails (Err err) ->
-            Debug.log (toString err)
-                ( model, Cmd.none )
+            ( { model | isSheetLoading = False, isSheetError = True }, Cmd.none )
 
         ChangeSheetID newSheetId ->
-            ( { model | sheetId = newSheetId }
+            ( { model | sheetId = Just newSheetId }
             , Cmd.none
             )
 
@@ -281,18 +298,46 @@ view model =
     Grid.containerFluid []
         [ Grid.row []
             [ Grid.col []
-                [ viewDevelopmentDebugHeader model
+                [ (if not model.isProductionMode then
+                    viewDevelopmentDebugHeader model
+                   else
+                    div [] []
+                  )
                 , div [ class "sheet" ]
-                    [ h1 [ class "sheet__title" ] [ text (model.title) ]
-                    , p [ class "sheet__description" ] [ text (model.description) ]
-                    , if model.viewStyle == CardView then
-                        viewCard model
-                      else
-                        viewTable model
-                    ]
+                    (if (not (isSheetDefined model)) || (isSheetError model) then
+                        [ Alert.danger [ text "Uh oh! We are having difficulty accessing your sheet. We've been notified - please try again later." ] ]
+                     else if isSheetLoading model then
+                        [ div []
+                            [ Progress.progress [ Progress.value 100, Progress.height 50, Progress.animated, Progress.striped ]
+                            ]
+                        ]
+                     else
+                        [ h1 [ class "sheet__title" ] [ text (model.title) ]
+                        , p [ class "sheet__description" ] [ text (model.description) ]
+                        , if model.viewStyle == CardView then
+                            viewCard model
+                          else
+                            viewTable model
+                        ]
+                    )
                 ]
             ]
         ]
+
+
+isSheetError : Model -> Bool
+isSheetError model =
+    model.isSheetError
+
+
+isSheetLoading : Model -> Bool
+isSheetLoading model =
+    model.isSheetLoading == True
+
+
+isSheetDefined : Model -> Bool
+isSheetDefined model =
+    model.sheetId /= Nothing
 
 
 viewCard : Model -> Html Msg
@@ -397,7 +442,7 @@ viewDevelopmentDebugHeader model =
                     [ Form.form []
                         [ Form.group []
                             [ Form.label [ for "dev_sheet_id" ] [ text "Sheet ID" ]
-                            , Input.text [ Input.id "dev_sheet_id", Input.onInput ChangeSheetID, Input.value model.sheetId ]
+                            , Input.text [ Input.id "dev_sheet_id", Input.onInput ChangeSheetID, Input.value (Maybe.withDefault "" model.sheetId) ]
                             , Form.help [] [ text "Sheet ID you wish to query for: /sheets/:sheet_id" ]
                             , Button.button [ Button.primary, Button.onClick FetchSheet ] [ text "Fetch" ]
                             ]
@@ -721,7 +766,7 @@ encodedSignupValue model =
 
 postNewSignup : Model -> Http.Request SignupJSONResponse
 postNewSignup model =
-    Http.post "//wejoinin.herokuapp.com/api/v1/signups"
+    Http.post (model.apiBaseEndpoint ++ "/api/v1/signups")
         (Http.jsonBody (encodedSignupValue model))
         decodeSignupResponse
 
@@ -731,16 +776,18 @@ createSignup model =
     Http.send ReceiveSignupResponse (postNewSignup model)
 
 
-getSheetDetails : String -> Cmd Msg
-getSheetDetails sheetId =
+getSheetDetails : String -> Maybe SheetID -> Cmd Msg
+getSheetDetails apiBaseEndpoint maybeSheetId =
     let
         url =
-            "//wejoinin.herokuapp.com/api/v1/sheets/" ++ sheetId ++ ".json"
+            apiBaseEndpoint ++ "/api/v1/sheets/" ++ (Maybe.withDefault "" maybeSheetId) ++ ".json"
     in
-        log url
-            Http.send
-            ReceiveSheetDetails
-            (Http.get url decodeSheetResponse)
+        case maybeSheetId of
+            Just sheetId ->
+                (Http.send ReceiveSheetDetails (Http.get url decodeSheetResponse))
+
+            Nothing ->
+                Cmd.none
 
 
 decodeSignupResponse : Decoder SignupJSONResponse

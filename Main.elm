@@ -4,10 +4,10 @@ import Html exposing (..)
 import SignupTable exposing (..)
 
 
-main : Program Never Model Msg
+main : Program Flags Model Msg
 main =
-    Html.program
-        { init = init "2"
+    Html.programWithFlags
+        { init = init
         , view = view
         , update = update
         , subscriptions = subscriptions

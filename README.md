@@ -40,9 +40,17 @@ This app can be embedded in the following way:
 <body>
   <div id="wejoinin-root"></div>
   <script src="/dist/js/app.js"></script>
-  <script>Elm.Main.embed(document.querySelector("#wejoinin-root"));</script>
+  <script>
+      Elm.Main.embed(document.querySelector("#wejoinin-root"), {
+        sheetId: "xlogl",
+        apiBaseEndpoint: "https://localhost:3000",
+        productionMode: true
+      });
+  </script>
 </body>
 ```
+
+Note the three fields, `sheetId`, `apiBaseEndpoint` and `productionMode` must be populated.
 
 It is packaged as an [npm package](https://www.npmjs.com/package/prejoinin). Your app should embed `
 
