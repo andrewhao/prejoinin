@@ -1,6 +1,7 @@
 <!doctype html>
   <head>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
+    <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous"> -->
+    <link rel="stylesheet" href="http://localhost:3000/assets/application_next.css">
     <link rel="stylesheet" href="/dist/css/application.css">
     <!-- Required meta tags -->
     <meta charset="utf-8">
@@ -11,7 +12,12 @@
     <div id="wejoinin-root"></div>
     <script src="/dist/js/app.js"></script>
     <script>
-      Elm.Main.embed(document.querySelector("#wejoinin-root"), { sheetId: null, apiBaseEndpoint: "https://localhost:3000", productionMode: false});
+      Elm.Main.embed(document.querySelector("#wejoinin-root"), {
+        sheetId: "2",
+        apiBaseEndpoint: "http://localhost:3000",
+        productionMode: false,
+        apiKey: "96b70d59-19ff-45f9-acef-c800b17de742"
+      });
     </script>
   </body>
 </html>

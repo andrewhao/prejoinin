@@ -5,12 +5,9 @@ import Html exposing (..)
 import Html.Attributes exposing (autofocus, class, classList, disabled, for, href, name, placeholder, required, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
 import Http
+import HttpBuilder
 import Json.Decode exposing (Decoder, field, map4, map7, string)
 import Json.Encode
-
-
--- Bootstrap style helpers
-
 import Bootstrap.ButtonGroup as ButtonGroup
 import Bootstrap.Grid as Grid
 import Bootstrap.Form as Form
@@ -18,11 +15,8 @@ import Bootstrap.Form.Input as Input
 import Bootstrap.Form.Textarea as Textarea
 import Bootstrap.Button as Button
 import Bootstrap.Card as Card
-import Bootstrap.Form as Form
-import Bootstrap.Form.Input as Input
 import Bootstrap.Table as Table
 import Bootstrap.Popover as Popover
-import Bootstrap.Button as Button
 import Bootstrap.Modal as Modal
 import Bootstrap.Progress as Progress
 import Bootstrap.Alert as Alert
@@ -101,6 +95,7 @@ type alias Model =
     , isSheetLoading : Bool
     , isSheetError : Bool
     , isProductionMode : Bool
+    , apiKey : String
     }
 
 
@@ -112,6 +107,7 @@ type alias Flags =
     { sheetId : Maybe SheetID
     , apiBaseEndpoint : String
     , productionMode : Bool
+    , apiKey : String
     }
 
 
@@ -140,7 +136,8 @@ init flags =
         False
         False
         flags.productionMode
-    , getSheetDetails flags.apiBaseEndpoint flags.sheetId
+        flags.apiKey
+    , getSheetDetails flags.apiBaseEndpoint flags.sheetId flags.apiKey
     )
 
 
@@ -178,7 +175,7 @@ update msg model =
             ( { model | focusedColumn = Just column }, Cmd.none )
 
         FetchSheet ->
-            ( { model | isSheetLoading = True }, getSheetDetails model.apiBaseEndpoint model.sheetId )
+            ( { model | isSheetLoading = True }, getSheetDetails model.apiBaseEndpoint model.sheetId model.apiKey )
 
         SubmitNewSignup ->
             ( model, createSignup model )
@@ -188,7 +185,7 @@ update msg model =
 
         ReceiveSignupResponse (Ok jsonResponse) ->
             ( model |> defocusSlot
-            , getSheetDetails model.apiBaseEndpoint model.sheetId
+            , getSheetDetails model.apiBaseEndpoint model.sheetId model.apiKey
             )
 
         ReceiveSheetDetails (Ok jsonResponse) ->
@@ -764,27 +761,31 @@ encodedSignupValue model =
         ]
 
 
-postNewSignup : Model -> Http.Request SignupJSONResponse
-postNewSignup model =
-    Http.post (model.apiBaseEndpoint ++ "/api/v1/signups")
-        (Http.jsonBody (encodedSignupValue model))
-        decodeSignupResponse
-
-
 createSignup : Model -> Cmd Msg
 createSignup model =
-    Http.send ReceiveSignupResponse (postNewSignup model)
+    let
+        url =
+            model.apiBaseEndpoint ++ "/api/v1/signups"
+    in
+        HttpBuilder.post url
+            |> HttpBuilder.withHeaders [ ( "Content-Type", "application/json" ), ( "Authorization", "WejoininAuth key=" ++ model.apiKey ) ]
+            |> HttpBuilder.withJsonBody (encodedSignupValue model)
+            |> HttpBuilder.withExpect (Http.expectJson decodeSignupResponse)
+            |> HttpBuilder.send ReceiveSignupResponse
 
 
-getSheetDetails : String -> Maybe SheetID -> Cmd Msg
-getSheetDetails apiBaseEndpoint maybeSheetId =
+getSheetDetails : String -> Maybe SheetID -> String -> Cmd Msg
+getSheetDetails apiBaseEndpoint maybeSheetId apiKey =
     let
         url =
             apiBaseEndpoint ++ "/api/v1/sheets/" ++ (Maybe.withDefault "" maybeSheetId) ++ ".json"
     in
         case maybeSheetId of
             Just sheetId ->
-                (Http.send ReceiveSheetDetails (Http.get url decodeSheetResponse))
+                HttpBuilder.get url
+                    |> HttpBuilder.withHeaders [ ( "Content-Type", "application/json" ), ( "Authorization", "WejoininAuth key=" ++ apiKey ) ]
+                    |> HttpBuilder.withExpect (Http.expectJson decodeSheetResponse)
+                    |> HttpBuilder.send ReceiveSheetDetails
 
             Nothing ->
                 Cmd.none
