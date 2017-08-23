@@ -139,7 +139,7 @@ init flags =
         CardView
         False
         False
-        False
+        flags.productionMode
     , getSheetDetails flags.apiBaseEndpoint flags.sheetId
     )
 
