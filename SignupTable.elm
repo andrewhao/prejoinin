@@ -1,24 +1,24 @@
 module SignupTable exposing (Msg(..), Model, Flags, init, update, view, subscriptions)
 
+import Bootstrap.Alert as Alert
+import Bootstrap.Button as Button
+import Bootstrap.ButtonGroup as ButtonGroup
+import Bootstrap.Card as Card
+import Bootstrap.Form as Form
+import Bootstrap.Form.Input as Input
+import Bootstrap.Form.Textarea as Textarea
+import Bootstrap.Modal as Modal
+import Bootstrap.Popover as Popover
+import Bootstrap.Progress as Progress
+import Bootstrap.Table as Table
 import Data.Sheet exposing (Column, Row, SheetJSONResponse, Signup, SignupJSONResponse, SignupSlot, decodeColumns, decodeRows, decodeSignupSlots, decodeSignups)
 import Html exposing (..)
-import Html.Attributes exposing (autofocus, class, classList, disabled, for, href, name, placeholder, required, type_, value)
+import Html.Attributes exposing (autocomplete, autofocus, class, classList, disabled, for, href, name, placeholder, required, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
 import Http
 import HttpBuilder
 import Json.Decode exposing (Decoder, field, map4, map7, string)
 import Json.Encode
-import Bootstrap.ButtonGroup as ButtonGroup
-import Bootstrap.Form as Form
-import Bootstrap.Form.Input as Input
-import Bootstrap.Form.Textarea as Textarea
-import Bootstrap.Button as Button
-import Bootstrap.Card as Card
-import Bootstrap.Table as Table
-import Bootstrap.Popover as Popover
-import Bootstrap.Modal as Modal
-import Bootstrap.Progress as Progress
-import Bootstrap.Alert as Alert
 
 
 -- MESSAGES
@@ -342,21 +342,29 @@ viewCard model =
 
 viewColumnSideScroller : Model -> Html Msg
 viewColumnSideScroller model =
-    div [ class "side-scroller" ]
-        [ viewColumnsSideScrollerItems model ]
+    div [ class "side-scroller" ] (viewColumnsSideScrollerItems model)
 
 
-viewColumnsSideScrollerItems : Model -> Html Msg
+viewColumnsSideScrollerItems : Model -> List (Html Msg)
 viewColumnsSideScrollerItems model =
-    ButtonGroup.radioButtonGroup [ ButtonGroup.large ]
-        (List.map (viewColumnSideScrollerItem model) model.columns)
+    List.map (viewColumnSideScrollerItem model) model.columns
 
 
-viewColumnSideScrollerItem : Model -> Column -> ButtonGroup.RadioButtonItem Msg
+viewColumnSideScrollerItem : Model -> Column -> Html Msg
 viewColumnSideScrollerItem model column =
-    ButtonGroup.radioButton (model.focusedColumn == Just column)
-        [ Button.outlinePrimary, Button.onClick <| ChangeFocusedColumn column ]
-        [ text column.value ]
+    let
+        isFocused =
+            (model.focusedColumn == Just column)
+    in
+        div
+            [ onClick (ChangeFocusedColumn column)
+            , classList
+                [ ( "side-scroller__tab", True )
+                , ( "side-scroller__tab--active", isFocused )
+                ]
+            ]
+            [ text column.value
+            ]
 
 
 viewCardList : Model -> Html Msg
@@ -569,7 +577,6 @@ viewSignupSlotAsCard model signupSlot =
                     [ Button.disabled True
                     , Button.small
                     , Button.outlineSecondary
-                    , Button.block
                     ]
                     [ text "Slot full" ]
               else if (isSignupSlotClosed signupSlot) then
@@ -577,7 +584,6 @@ viewSignupSlotAsCard model signupSlot =
                     [ Button.disabled True
                     , Button.small
                     , Button.outlineSecondary
-                    , Button.block
                     ]
                     [ text "Slot closed" ]
               else
@@ -596,7 +602,7 @@ focusedSignupSlot model isFocused =
             inputStrings
                 |> List.all String.isEmpty
     in
-        if isFocused then
+        if isFocused && (not allSignupInputBlank) then
             viewSignup
                 (Signup ""
                     (Maybe.withDefault "" model.currentNewSignupEmail)
@@ -645,7 +651,6 @@ viewSignupForm signupSlot model isFocused =
             (Button.button
                 [ Button.small
                 , Button.primary
-                , Button.block
                 , Button.onClick (FocusSlotJoin signupSlot.id)
                 , Button.attrs <|
                     Popover.onClick
@@ -669,18 +674,19 @@ viewSignupFormAsModal signupSlot model isFocused =
         [ (Button.button
             [ Button.small
             , Button.outlineSecondary
-            , Button.block
             , Button.onClick (FocusSlotJoin signupSlot.id)
             , Button.attrs
                 [ onClick <| ModalMsg signupSlot.id Modal.visibleState
+                , class "signup-card-list__action"
                 ]
             ]
             [ text "Join →" ]
           )
         , Modal.config (ModalMsg signupSlot.id)
             |> Modal.large
-            |> Modal.h3 [] [ text ("Join this slot: " ++ (viewSignupSlotTitle model signupSlot)) ]
-            |> Modal.body []
+            |> Modal.header [ class "signup-modal__header" ]
+                [ text ("Join this slot: " ++ (viewSignupSlotTitle model signupSlot)) ]
+            |> Modal.body [ class "signup-modal__body" ]
                 [ viewSignupRawForm signupSlot model isFocused
                 ]
             |> Modal.view (modalStateForSignupSlot model signupSlot)
@@ -694,21 +700,21 @@ viewSignupRawForm signupSlot model isFocused =
             [ Form.group []
                 [ Input.text
                     [ Input.onInput EditNewSignupName
-                    , Input.attrs [ type_ "text", name "name", placeholder "Name", autofocus True, onInput EditNewSignupName, required True ]
+                    , Input.attrs [ type_ "text", name "name", placeholder "Name", autofocus True, autocomplete False, onInput EditNewSignupName, required True ]
                     ]
                 , Form.help [] [ text "Your name to sign up with" ]
                 ]
             , Form.group []
                 [ Input.email
                     [ Input.onInput EditNewSignupEmail
-                    , Input.attrs [ type_ "email", name "email", placeholder "Email", required True ]
+                    , Input.attrs [ type_ "email", name "email", placeholder "Email", autocomplete False, required True ]
                     ]
                 , Form.help [] [ text "You will be emailed a confirmation to this address." ]
                 ]
             , Form.group []
                 [ Textarea.textarea
                     [ Textarea.onInput EditNewSignupComment
-                    , Textarea.attrs [ name "comment", placeholder "Comment (optional)" ]
+                    , Textarea.attrs [ name "comment", autocomplete False, placeholder "Comment (optional)" ]
                     ]
                 , Form.help [] [ text "Anything other information you want to include" ]
                 ]
