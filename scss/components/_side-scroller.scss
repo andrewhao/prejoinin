@@ -1,23 +1,32 @@
-$sheet-bgcolor: #FFFFFF;
-$signup-card-list-col-header-color: transparent;
-$signup-card-list-col-header-color-active: #98562e;
-$signup-card-list-header-text-color: #FFFFFF;
-
 .side-scroller {
   overflow-x: scroll;
+  display: flex;
+  flex-direction: row;
+  border-top: 1px solid rgba(0,0,0,0.16);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
 
   // Temporary !important as an override
-  .btn {
-    border-radius: 0 !important;
-    background-color: $signup-card-list-col-header-color;
-    color: $signup-card-list-col-header-color-active;
-    border-color: $signup-card-list-col-header-color-active;
-    padding: 0.75rem;
+  &__tab {
+    background-color: map-get($colors, primary-dark);
+    color: transparentize(map-get($colors, text-primary-dark), 0.4);
+    border-width: 1px;
+    padding: 1rem;
     font-size: 1.3rem;
+    line-height: 1.3rem;
     min-width: 8rem;
+    border-bottom: 3px solid transparent;
+    flex-grow: 1;
+    text-align: center;
+    font-family: "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+
+    &--active {
+      color: map-get($colors, text-primary-dark);
+      border-bottom: 3px solid map-get($colors, secondary);
+    }
   }
-  .active {
-    color: $signup-card-list-header-text-color;
-    background-color: $signup-card-list-col-header-color-active;
-  }
+
 }
