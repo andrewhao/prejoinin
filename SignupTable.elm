@@ -391,7 +391,9 @@ viewCard model =
 
 viewColumnSideScroller : Model -> Html Msg
 viewColumnSideScroller model =
-    div [ class "side-scroller" ] (viewColumnsSideScrollerItems model)
+    div [ class "side-scroller" ]
+        [ div [ class "side-scroller__items" ] (viewColumnsSideScrollerItems model)
+        ]
 
 
 viewColumnsSideScrollerItems : Model -> List (Html Msg)
