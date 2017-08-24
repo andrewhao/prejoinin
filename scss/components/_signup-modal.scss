@@ -5,3 +5,8 @@
     font-size: 1.1rem;
   }
 }
+
+// Bootstrap overrides
+.modal.fade.show {
+  overflow-y: auto;
+}
