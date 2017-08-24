@@ -7,15 +7,14 @@ $signup-card-list-header-text-color: #FFFFFF;
 .signup-card-list {
   &__column-header {
     background-color: $signup-card-list-col-header-color;
-    color: $signup-card-list-header-text-color
+    color: $signup-card-list-header-text-color;
   }
 
   &__row-header {
     background-color: $signup-card-list-row-header-color;
     color: $signup-card-list-header-text-color;
-    &:first-child {
-      border-radius: 0;
-    }
+    font-weight: bold;
+    font-family: "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif;
   }
 
   &__header {
@@ -23,10 +22,14 @@ $signup-card-list-header-text-color: #FFFFFF;
   }
 
   &__card {
-    margin-top: 1rem;
-    border-radius: 0;
+    margin: 1rem 1rem 1.5rem 1rem;
+    border: none;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+    background-color: $signup-card-list-row-header-color;
   }
+
   &__card-body {
+    padding: 1rem;
     background-color: $signup-table-cell-color;
     &--focused {
       background-color: $signup-table-focused-cell-color;

@@ -7,6 +7,7 @@ $signup-table-header-text-color: #FFFFFF;
 .signup-table {
   border-spacing: 2px;
   border-collapse: separate;
+
   &__column-header {
     background-color: $signup-table-col-header-color;
     color: $signup-table-header-text-color
@@ -26,10 +27,6 @@ $signup-table-header-text-color: #FFFFFF;
     &--focused {
       background-color: $signup-table-focused-cell-color;
     }
-  }
-
-  &__signup {
-    border-bottom: 1px dotted #AAA;
   }
 
   &.table {
