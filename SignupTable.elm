@@ -9,7 +9,6 @@ import HttpBuilder
 import Json.Decode exposing (Decoder, field, map4, map7, string)
 import Json.Encode
 import Bootstrap.ButtonGroup as ButtonGroup
-import Bootstrap.Grid as Grid
 import Bootstrap.Form as Form
 import Bootstrap.Form.Input as Input
 import Bootstrap.Form.Textarea as Textarea
@@ -133,7 +132,7 @@ init flags =
         []
         Nothing
         CardView
-        False
+        True
         False
         flags.productionMode
         flags.apiKey
@@ -292,33 +291,29 @@ defocusSlot model =
 
 view : Model -> Html Msg
 view model =
-    Grid.containerFluid []
-        [ Grid.row []
-            [ Grid.col []
-                [ (if not model.isProductionMode then
-                    viewDevelopmentDebugHeader model
-                   else
-                    div [] []
-                  )
-                , div [ class "sheet" ]
-                    (if (not (isSheetDefined model)) || (isSheetError model) then
-                        [ Alert.danger [ text "Uh oh! We are having difficulty accessing your sheet. We've been notified - please try again later." ] ]
-                     else if isSheetLoading model then
-                        [ div []
-                            [ Progress.progress [ Progress.value 100, Progress.height 50, Progress.animated, Progress.striped ]
-                            ]
-                        ]
-                     else
-                        [ h1 [ class "sheet__title" ] [ text (model.title) ]
-                        , p [ class "sheet__description" ] [ text (model.description) ]
-                        , if model.viewStyle == CardView then
-                            viewCard model
-                          else
-                            viewTable model
-                        ]
-                    )
+    div []
+        [ (if not model.isProductionMode then
+            viewDevelopmentDebugHeader model
+           else
+            div [] []
+          )
+        , div [ class "sheet" ]
+            (if (not (isSheetDefined model)) || (isSheetError model) then
+                [ Alert.danger [ text "Uh oh! We are having difficulty accessing your sheet. We've been notified - please try again later." ] ]
+             else if isSheetLoading model then
+                [ div []
+                    [ Progress.progress [ Progress.value 100, Progress.height 50, Progress.animated, Progress.striped ]
+                    ]
                 ]
-            ]
+             else
+                [ h1 [ class "sheet__title" ] [ text (model.title) ]
+                , p [ class "sheet__description" ] [ text (model.description) ]
+                , if model.viewStyle == CardView then
+                    viewCard model
+                  else
+                    viewTable model
+                ]
+            )
         ]
 
 
@@ -526,15 +521,27 @@ viewSignupSlot signupSlot model =
                     , ( "signup-table__cell--focused", isFocused )
                     ]
             ]
-            [ div [ class "signup-cell__signup-list" ]
+            [ div [ class "signup-list" ]
                 (List.append
                     (viewSignupsForSlot signupSlot model.signups)
                     [ focusedSignupSlot model isFocused ]
                 )
             , if (isSignupSlotFull model signupSlot) then
-                div [ class "signup-table__cell-info--full signup-table__cell-info" ] [ text "Slot full" ]
+                Button.button
+                    [ Button.disabled True
+                    , Button.small
+                    , Button.outlineSecondary
+                    , Button.block
+                    ]
+                    [ text "Slot full" ]
               else if (isSignupSlotClosed signupSlot) then
-                div [ class "signup-table__cell-info--closed signup-table__cell-info" ] [ text "Slot closed" ]
+                Button.button
+                    [ Button.disabled True
+                    , Button.small
+                    , Button.outlineSecondary
+                    , Button.block
+                    ]
+                    [ text "Slot closed" ]
               else
                 viewSignupForm signupSlot model isFocused
             ]
@@ -552,15 +559,27 @@ viewSignupSlotAsCard model signupSlot =
                 , ( "signup-card--focused", isFocused )
                 ]
             ]
-            [ div [ class "signup-card__signup-list" ]
+            [ div [ class "signup-list" ]
                 (List.append
                     (viewSignupsForSlot signupSlot model.signups)
                     [ focusedSignupSlot model isFocused ]
                 )
             , if (isSignupSlotFull model signupSlot) then
-                div [ class "signup-card__info--full signup-card__info" ] [ text "Slot full" ]
+                Button.button
+                    [ Button.disabled True
+                    , Button.small
+                    , Button.outlineSecondary
+                    , Button.block
+                    ]
+                    [ text "Slot full" ]
               else if (isSignupSlotClosed signupSlot) then
-                div [ class "signup-card__info--closed signup-card__info" ] [ text "Slot closed" ]
+                Button.button
+                    [ Button.disabled True
+                    , Button.small
+                    , Button.outlineSecondary
+                    , Button.block
+                    ]
+                    [ text "Slot closed" ]
               else
                 viewSignupFormAsModal signupSlot model isFocused
             ]
@@ -625,7 +644,7 @@ viewSignupForm signupSlot model isFocused =
         [ Popover.config
             (Button.button
                 [ Button.small
-                , Button.outlinePrimary
+                , Button.primary
                 , Button.block
                 , Button.onClick (FocusSlotJoin signupSlot.id)
                 , Button.attrs <|
@@ -649,7 +668,7 @@ viewSignupFormAsModal signupSlot model isFocused =
     div []
         [ (Button.button
             [ Button.small
-            , Button.outlinePrimary
+            , Button.outlineSecondary
             , Button.block
             , Button.onClick (FocusSlotJoin signupSlot.id)
             , Button.attrs
@@ -721,7 +740,7 @@ viewSignup signup =
                 (signup.name ++ " (" ++ signup.comment ++ ")")
             )
     in
-        div [ class "signup-table__signup" ] [ text signupText ]
+        div [ class "signup-list__signup" ] [ text signupText ]
 
 
 viewSignupSlotTitle : Model -> SignupSlot -> String

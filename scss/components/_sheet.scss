@@ -1,12 +1,15 @@
-$sheet-bgcolor: #FFFFFF;
+$sheet-bgcolor: transparent;
 .sheet {
   background-color: $sheet-bgcolor;
-  padding: 1rem;
   margin-top: 1rem;
 
   &__title {
-    font-style: italic;
     color: #cc4c2b;
-    font-family: Georgia, serif;
+    margin: 0 1rem;
+  }
+
+  &__description {
+    margin: 1rem 1rem 1rem;
+    font-size: 1.15rem;
   }
 }

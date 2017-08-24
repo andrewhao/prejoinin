@@ -9,13 +9,26 @@
   </head>
 
   <body>
+    <div class="container-fluid">
+      <div class="next-nav">
+        <div class="next-nav__brand">
+          <div class="logo logo--large">
+            <a href="/">Wejoinin</a>
+          </div>
+        </div>
+        <div class="next-nav__actions">
+          <a class="next-nav__action-item btn btn--responsive btn-outline-secondary" href="/andrew@wejoinin.com">Dashboard →</a>
+        </div>
+      </div>
+    </div>
+
     <div id="wejoinin-root"></div>
     <script src="/dist/js/app.js"></script>
     <script>
       Elm.Main.embed(document.querySelector("#wejoinin-root"), {
         sheetId: "2",
         apiBaseEndpoint: "http://localhost:3000",
-        productionMode: false,
+        productionMode: true,
         apiKey: "96b70d59-19ff-45f9-acef-c800b17de742"
       });
     </script>
