@@ -197,7 +197,12 @@ update msg model =
                 , signups = jsonResponse.signups
                 , signupSlotPopovers = (initializeSignupSlotPopovers jsonResponse.signupSlots)
                 , signupSlotModals = (initializeSignupSlotModals jsonResponse.signupSlots)
-                , focusedColumn = List.head jsonResponse.columns
+                , focusedColumn =
+                    (if model.focusedColumn == Nothing then
+                        List.head jsonResponse.columns
+                     else
+                        model.focusedColumn
+                    )
                 , isSheetLoading = False
                 , isSheetError = False
               }
