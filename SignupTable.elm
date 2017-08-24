@@ -11,9 +11,10 @@ import Bootstrap.Modal as Modal
 import Bootstrap.Popover as Popover
 import Bootstrap.Progress as Progress
 import Bootstrap.Table as Table
+import Toasty
 import Data.Sheet exposing (Column, Row, SheetJSONResponse, Signup, SignupJSONResponse, SignupSlot, decodeColumns, decodeRows, decodeSignupSlots, decodeSignups)
 import Html exposing (..)
-import Html.Attributes exposing (autocomplete, autofocus, class, classList, disabled, for, href, name, placeholder, required, type_, value)
+import Html.Attributes exposing (autocomplete, autofocus, class, classList, disabled, for, href, name, placeholder, required, type_, value, style)
 import Html.Events exposing (onClick, onInput, onSubmit)
 import Http
 import HttpBuilder
@@ -39,6 +40,7 @@ type Msg
     | ModalMsg SignupSlotID Modal.State
     | ChangeFocusedColumn Column
     | ChangeViewStyle PageViewStyle
+    | ToastyMsg (Toasty.Msg String)
 
 
 type alias SheetID =
@@ -95,6 +97,7 @@ type alias Model =
     , isSheetError : Bool
     , isProductionMode : Bool
     , apiKey : String
+    , toasties : Toasty.Stack String
     }
 
 
@@ -136,6 +139,7 @@ init flags =
         False
         flags.productionMode
         flags.apiKey
+        Toasty.initialState
     , getSheetDetails flags.apiBaseEndpoint flags.sheetId flags.apiKey
     )
 
@@ -160,6 +164,16 @@ initializeSignupSlotModal signupSlot =
     { signupSlotId = signupSlot.id, modalState = Modal.hiddenState }
 
 
+defaultToastConfig : Toasty.Config msg
+defaultToastConfig =
+    Toasty.config
+        |> Toasty.transitionOutDuration 800
+        |> Toasty.transitionInAttrs [ class "notification__container notification__container--fade-in" ]
+        |> Toasty.transitionOutAttrs [ class "notification__container--fade-out" ]
+        |> Toasty.containerAttrs [ class "notification" ]
+        |> Toasty.delay 8000
+
+
 
 -- UPDATE
 
@@ -177,7 +191,17 @@ update msg model =
             ( { model | isSheetLoading = True }, getSheetDetails model.apiBaseEndpoint model.sheetId model.apiKey )
 
         SubmitNewSignup ->
-            ( model, createSignup model )
+            let
+                focusedSignupSlotMaybe =
+                    (getSignupSlot model model.focusedSlotId)
+            in
+                case focusedSignupSlotMaybe of
+                    Just focusedSignupSlot ->
+                        ( model, createSignup model )
+                            |> Toasty.addToast defaultToastConfig ToastyMsg ("You've signed up for " ++ (viewSignupSlotTitle model focusedSignupSlot) ++ ". A confirmation email has been sent to your email address.")
+
+                    Nothing ->
+                        ( model, Cmd.none )
 
         ReceiveSignupResponse (Err err) ->
             ( model, Cmd.none )
@@ -250,6 +274,20 @@ update msg model =
                 { model | signupSlotModals = updatedSignupSlotModals }
                     |> update (FocusSlotJoin slotId)
 
+        ToastyMsg subMsg ->
+            Toasty.update defaultToastConfig ToastyMsg subMsg model
+
+
+getSignupSlot : Model -> Maybe SignupSlotID -> Maybe SignupSlot
+getSignupSlot model signupSlotIdMaybe =
+    case signupSlotIdMaybe of
+        Just signupSlotId ->
+            List.filter (\slot -> slot.id == signupSlotId) model.signupSlots
+                |> List.head
+
+        Nothing ->
+            Nothing
+
 
 updateStateForPopoverInSlot : Popover.State -> SignupSlotID -> List SignupSlotPopover -> List SignupSlotPopover
 updateStateForPopoverInSlot popoverState signupSlotId signupSlotPopoverList =
@@ -319,7 +357,13 @@ view model =
                     viewTable model
                 ]
             )
+        , Toasty.view defaultToastConfig renderToast ToastyMsg model.toasties
         ]
+
+
+renderToast : String -> Html Msg
+renderToast toast =
+    div [ class "notification__toast" ] [ text toast ]
 
 
 isSheetError : Model -> Bool
