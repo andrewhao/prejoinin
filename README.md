@@ -44,15 +44,20 @@ This app can be embedded in the following way:
       Elm.Main.embed(document.querySelector("#wejoinin-root"), {
         sheetId: "xlogl",
         apiBaseEndpoint: "https://localhost:3000",
-        productionMode: true
+        productionMode: true,
+        apiKey: "<apiKey>"
       });
   </script>
 </body>
 ```
 
-Note the three fields, `sheetId`, `apiBaseEndpoint` and `productionMode` must be populated.
+Note the three fields, `sheetId`, `apiBaseEndpoint` and `productionMode`, and `apiKey` must be populated.
 
-It is packaged as an [npm package](https://www.npmjs.com/package/prejoinin). Your app should embed `
+It is packaged as an [npm package](https://www.npmjs.com/package/prejoinin). Your app should find a DOM node to embed this widget in.
+
+## Ports
+
+This app requires a JS listener on the `app.ports.modalChanged` port. This will send a boolean value indicating whether a modal is currently open on the page or not, and you will need to throw a `modal-open` class on the `<body>` tag if it is open. Use the implementation in `index.html` as a reference.
 
 ## Tests
 
