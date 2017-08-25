@@ -2,6 +2,16 @@
   &__header {
     font-family: "Montserrat", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-weight: bold;
-    font-size: 1.1rem;
+    font-size: 1rem;
+    margin: 0;
+    padding: 0.5rem;
+  }
+
+  &__body {
+    padding: 0.5rem;
+  }
+
+  .form-group {
+    margin-bottom: 0.25rem;
   }
 }

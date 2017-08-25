@@ -1,4 +1,4 @@
-module SignupTable exposing (Msg(..), Model, Flags, init, update, view, subscriptions)
+port module SignupTable exposing (Msg(..), Model, Flags, init, update, view, subscriptions)
 
 import Bootstrap.Alert as Alert
 import Bootstrap.Button as Button
@@ -20,6 +20,13 @@ import Http
 import HttpBuilder
 import Json.Decode exposing (Decoder, field, map4, map7, string)
 import Json.Encode
+
+
+-- PORTS
+
+
+port modalOpened : Bool -> Cmd msg
+
 
 
 -- MESSAGES
@@ -207,9 +214,9 @@ update msg model =
             ( model, Cmd.none )
 
         ReceiveSignupResponse (Ok jsonResponse) ->
-            ( model |> defocusSlot
-            , getSheetDetails model.apiBaseEndpoint model.sheetId model.apiKey
-            )
+            model
+                |> defocusSlot
+                |> Tuple.mapSecond (\cmd -> Cmd.batch [ cmd, getSheetDetails model.apiBaseEndpoint model.sheetId model.apiKey ])
 
         ReceiveSheetDetails (Ok jsonResponse) ->
             ( { model
@@ -254,9 +261,7 @@ update msg model =
             ( { model | currentNewSignupComment = Just newComment }, Cmd.none )
 
         CancelSlotFocus slotId ->
-            ( defocusSlot model
-            , Cmd.none
-            )
+            defocusSlot model
 
         PopoverMsg slotId state ->
             let
@@ -273,6 +278,7 @@ update msg model =
             in
                 { model | signupSlotModals = updatedSignupSlotModals }
                     |> update (FocusSlotJoin slotId)
+                    |> Tuple.mapSecond (\cmd -> Cmd.batch [ cmd, (modalOpened (Modal.visibleState == state)) ])
 
         ToastyMsg subMsg ->
             Toasty.update defaultToastConfig ToastyMsg subMsg model
@@ -315,16 +321,18 @@ updateStateForModalInSlot modalState signupSlotId signupSlotModalList =
         signupSlotModalList
 
 
-defocusSlot : Model -> Model
+defocusSlot : Model -> ( Model, Cmd Msg )
 defocusSlot model =
-    { model
+    ( { model
         | focusedSlotId = Nothing
         , currentNewSignupName = Nothing
         , currentNewSignupEmail = Nothing
         , currentNewSignupComment = Nothing
         , signupSlotPopovers = initializeSignupSlotPopovers model.signupSlots
         , signupSlotModals = initializeSignupSlotModals model.signupSlots
-    }
+      }
+    , (modalOpened False)
+    )
 
 
 
@@ -391,7 +399,9 @@ viewCard model =
 
 viewColumnSideScroller : Model -> Html Msg
 viewColumnSideScroller model =
-    div [ class "side-scroller" ] (viewColumnsSideScrollerItems model)
+    div [ class "side-scroller" ]
+        [ div [ class "side-scroller__items" ] (viewColumnsSideScrollerItems model)
+        ]
 
 
 viewColumnsSideScrollerItems : Model -> List (Html Msg)

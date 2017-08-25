@@ -1,14 +1,19 @@
 .side-scroller {
-  overflow-x: scroll;
-  display: flex;
-  flex-direction: row;
   border-top: 1px solid rgba(0,0,0,0.16);
   box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+  width: 100%;
+  overflow: auto;
+
+  &__items {
+    display: flex;
+    flex-direction: row;
+  }
 
   // Temporary !important as an override
   &__tab {
-    background-color: map-get($colors, primary-dark);
-    color: transparentize(map-get($colors, text-primary-dark), 0.4);
+    // background-color: map-get($colors, primary-dark);
+    background-color: #EEEEEE;
+    color: transparentize(map-get($colors, text-secondary-light), 0.2);
     border-width: 1px;
     padding: 1rem;
     font-size: 1.3rem;
@@ -24,9 +29,18 @@
     justify-content: flex-end;
 
     &--active {
-      color: map-get($colors, text-primary-dark);
+      color: map-get($colors, primary-dark);
       border-bottom: 3px solid map-get($colors, secondary);
+      animation: border-expand 0.2s cubic-bezier(0.4, 0.0, 0.4, 1) alternate forwards;
+    }
+    @keyframes border-expand {
+      0% {
+        opacity: 0;
+      }
+
+      100% {
+        opacity: 1;
+      }
     }
   }
-
 }
