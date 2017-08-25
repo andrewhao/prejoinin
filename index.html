@@ -25,11 +25,23 @@
     <div id="wejoinin-root"></div>
     <script src="/dist/js/app.js"></script>
     <script>
-      Elm.Main.embed(document.querySelector("#wejoinin-root"), {
+      var app = Elm.Main.embed(document.querySelector("#wejoinin-root"), {
         sheetId: "xlogl",
         apiBaseEndpoint: "http://localhost:3000",
         productionMode: true,
         apiKey: "96b70d59-19ff-45f9-acef-c800b17de742"
+      });
+
+      // Port signifying an event when a modal opens, and when one is closed.
+      // This is important because TWBS modals need a body tag class to prevent
+      // the background from hijacking the scroll in the lightbox.
+      app.ports.modalOpened.subscribe(function(isOpen) {
+        var bodyClasses = document.body.classList
+        if (isOpen) {
+          bodyClasses.add("modal-open");
+        } else {
+          bodyClasses.remove("modal-open");
+        }
       });
     </script>
   </body>
