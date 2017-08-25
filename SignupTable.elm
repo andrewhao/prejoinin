@@ -11,15 +11,17 @@ import Bootstrap.Modal as Modal
 import Bootstrap.Popover as Popover
 import Bootstrap.Progress as Progress
 import Bootstrap.Table as Table
-import Toasty
+import DOM
 import Data.Sheet exposing (Column, Row, SheetJSONResponse, Signup, SignupJSONResponse, SignupSlot, decodeColumns, decodeRows, decodeSignupSlots, decodeSignups)
 import Html exposing (..)
-import Html.Attributes exposing (autocomplete, autofocus, class, classList, disabled, for, href, name, placeholder, required, type_, value, style)
-import Html.Events exposing (onClick, onInput, onSubmit)
+import Html.Attributes exposing (autocomplete, autofocus, class, classList, disabled, for, href, id, name, placeholder, required, style, type_, value)
+import Html.Events exposing (on, onClick, onInput, onSubmit)
 import Http
 import HttpBuilder
 import Json.Decode exposing (Decoder, field, map4, map7, string)
 import Json.Encode
+import Task
+import Toasty
 
 
 -- MESSAGES
@@ -41,6 +43,8 @@ type Msg
     | ChangeFocusedColumn Column
     | ChangeViewStyle PageViewStyle
     | ToastyMsg (Toasty.Msg String)
+    | MeasureFocusedSlotDimensions (Result DOM.Error DOM.Dimensions)
+    | SetScrollerPosition (Result DOM.Error ())
 
 
 type alias SheetID =
@@ -184,8 +188,27 @@ update msg model =
         ChangeViewStyle viewStyle ->
             ( { model | viewStyle = viewStyle }, Cmd.none )
 
+        SetScrollerPosition result ->
+            Debug.log (toString result) ( model, Cmd.none )
+
+        MeasureFocusedSlotDimensions result ->
+            case result of
+                Ok rect ->
+                    let
+                        leftOffset =
+                            rect.left |> round
+                    in
+                        ( model
+                        , Task.attempt SetScrollerPosition (DOM.setScrollLeft leftOffset "#side-scroller")
+                        )
+
+                Err error ->
+                    Debug.log (toString error) (model ! [])
+
         ChangeFocusedColumn column ->
-            ( { model | focusedColumn = Just column }, Cmd.none )
+            ( { model | focusedColumn = Just column }
+            , Task.attempt MeasureFocusedSlotDimensions (DOM.getDimensions ("#btn-column-header-" ++ column.id))
+            )
 
         FetchSheet ->
             ( { model | isSheetLoading = True }, getSheetDetails model.apiBaseEndpoint model.sheetId model.apiKey )
@@ -391,7 +414,10 @@ viewCard model =
 
 viewColumnSideScroller : Model -> Html Msg
 viewColumnSideScroller model =
-    div [ class "side-scroller" ]
+    div
+        [ class "side-scroller"
+        , id "side-scroller"
+        ]
         [ div [ class "side-scroller__items" ] (viewColumnsSideScrollerItems model)
         ]
 
@@ -408,7 +434,8 @@ viewColumnSideScrollerItem model column =
             (model.focusedColumn == Just column)
     in
         div
-            [ onClick (ChangeFocusedColumn column)
+            [ id ("btn-column-header-" ++ column.id)
+            , onClick (ChangeFocusedColumn column)
             , classList
                 [ ( "side-scroller__tab", True )
                 , ( "side-scroller__tab--active", isFocused )
@@ -424,7 +451,10 @@ viewCardList model =
         signupSlots =
             (signupSlotsForColumn model model.focusedColumn)
     in
-        div [ class "signup-card-list" ]
+        div
+            [ class "signup-card-list"
+            , id "signup-card-list"
+            ]
             (List.map (viewCardForSlot model) signupSlots)
 
 
