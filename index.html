@@ -4,7 +4,6 @@
     <link rel="stylesheet" href="http://localhost:3000/assets/application_next.css">
     <link rel="stylesheet" href="/dist/css/application.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vissense/0.10.0/vissense.min.js"></script>
-"
     <!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
@@ -46,18 +45,61 @@
         }
       });
 
+      var updateVisibilityState = function(lastTabVisible, sideScrollerVisible) {
+        window.visibilityState = window.visibilityState || {};
+        if (lastTabVisible !== undefined) {
+          window.visibilityState.lastTabVisible = lastTabVisible;
+        }
+        if (sideScrollerVisible !== undefined) {
+          window.visibilityState.sideScrollerVisible = sideScrollerVisible;
+        }
+        broadcastVisibilityState();
+        return window.visibilityState;
+      }
+
+      var registerVisibilityChangeHandler = function(lastTabEl, sideScrollerEl) {
+        window.lastTabMonitor = VisSense(lastTabEl).monitor({
+          fullyvisible: function(e) {
+            updateVisibilityState(true);
+          },
+          percentagechange: function(e) {
+            if (e._state.percentage >= 0 && e._state.percentage < 1) {
+              updateVisibilityState(false);
+            }
+          }
+        }).start();
+
+        window.sideScrollerMonitor = VisSense(sideScrollerEl).monitor({
+          fullyvisible: function(e) {
+            updateVisibilityState(undefined, true);
+          },
+          percentagechange: function(e) {
+            if (e._state.percentage >= 0 && e._state.percentage < 1) {
+              updateVisibilityState(undefined, false);
+            }
+          }
+        }).start();
+      }
+
+      var initializeVisibilityState = function() {
+        updateVisibilityState(false, false);
+      }
+
+      var broadcastVisibilityState = function() {
+        var needsRightScrollerArrow = !window.visibilityState.lastTabVisible && window.visibilityState.sideScrollerVisible;
+        app.ports.needsRightScrollerArrow.send(needsRightScrollerArrow);
+      };
+
       app.ports.sheetUpdated.subscribe(function(isUpdated) {
-        // console.log(isUpdated);
-        var isAllVisible = true;
         setTimeout(function() {
-          document.querySelectorAll('.side-scroller__tab').forEach(function(el) {
-            var currentElementVisible = VisSense(el).isFullyVisible();
-            console.log('current el visible: ', currentElementVisible)
-            isAllVisible = isAllVisible && currentElementVisible;
-          });
-          app.ports.isSideScrollerVisible.send(isAllVisible);
+          var tabs = document.querySelectorAll('.side-scroller__tab');
+          var sideScrollerEl = document.querySelector('.side-scroller');
+          var lastTabEl = tabs[tabs.length-1];
+          registerVisibilityChangeHandler(lastTabEl, sideScrollerEl)
         }, 100);
       })
+
+      initializeVisibilityState();
     </script>
   </body>
 </html>

@@ -1,4 +1,4 @@
-$fab-button-size: 40px;
+$fab-button-size: 30px;
 $fab-button-bgcolor: #000000;
 .fab-button {
   position: absolute;
@@ -21,5 +21,22 @@ $fab-button-bgcolor: #000000;
   &--left {
     left: 1rem;
     top: calc(50% - #{$fab-button-size/2});
+  }
+
+
+  &--bounce {
+    animation: bounce 2s infinite;
+  }
+
+  @keyframes bounce {
+  	0%, 20%, 50%, 80%, 100% {
+      transform: translateX(0);
+    }
+  	40% {
+      transform: translateX(-7px);
+    }
+  	60% {
+      transform: translateX(-3px);
+    }
   }
 }

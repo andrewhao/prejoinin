@@ -33,10 +33,10 @@ port modalOpened : Bool -> Cmd msg
 
 
 
--- Inbound: the visibility state of the side scroller
+-- Inbound: if a side scroller widget is needed
 
 
-port isSideScrollerVisible : (Bool -> msg) -> Sub msg
+port needsRightScrollerArrow : (Bool -> msg) -> Sub msg
 
 
 
@@ -59,7 +59,7 @@ type Msg
     | ChangeFocusedColumn Column
     | ChangeViewStyle PageViewStyle
     | ToastyMsg (Toasty.Msg String)
-    | ReceiveSideScrollerVisibilityUpdate Bool
+    | ReceiveNeedsRightScrollerArrowUpdate Bool
 
 
 type alias SheetID =
@@ -117,7 +117,7 @@ type alias Model =
     , isProductionMode : Bool
     , apiKey : String
     , toasties : Toasty.Stack String
-    , isSideScrollerOverflowing : Bool
+    , needsRightScrollerArrow : Bool
     }
 
 
@@ -257,8 +257,8 @@ update msg model =
         ReceiveSheetDetails (Err err) ->
             ( { model | isSheetLoading = False, isSheetError = True }, Cmd.none )
 
-        ReceiveSideScrollerVisibilityUpdate isVisible ->
-            ( { model | isSideScrollerOverflowing = not isVisible }, Cmd.none )
+        ReceiveNeedsRightScrollerArrowUpdate needsRightScroller ->
+            ( { model | needsRightScrollerArrow = needsRightScroller }, Cmd.none )
 
         ChangeSheetID newSheetId ->
             ( { model | sheetId = Just newSheetId }
@@ -418,8 +418,8 @@ viewColumnSideScroller : Model -> Html Msg
 viewColumnSideScroller model =
     div [ class "side-scroller" ]
         [ div [ class "side-scroller__items" ] (viewColumnsSideScrollerItems model)
-        , (if model.isSideScrollerOverflowing then
-            div [ class "fab-button fab-button--right" ] [ i [ class "material-icons" ] [ text "arrow_forward" ] ]
+        , (if model.needsRightScrollerArrow then
+            div [ class "fab-button fab-button--right fab-button--bounce" ] [ i [ class "material-icons" ] [ text "arrow_forward" ] ]
            else
             Html.text ""
           )
@@ -850,7 +850,7 @@ signupsForSlot signupSlot signupList =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    isSideScrollerVisible ReceiveSideScrollerVisibilityUpdate
+    needsRightScrollerArrow ReceiveNeedsRightScrollerArrowUpdate
 
 
 
