@@ -15,3 +15,9 @@
     margin-bottom: 0.25rem;
   }
 }
+
+// Fix iOS scrolling bug where pointer events were being
+// swallowed, preventing scrolling of the div.
+.modal.fade.show {
+  pointer-events: auto !important;
+}
