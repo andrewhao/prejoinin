@@ -11,21 +11,32 @@ import Bootstrap.Modal as Modal
 import Bootstrap.Popover as Popover
 import Bootstrap.Progress as Progress
 import Bootstrap.Table as Table
-import Toasty
 import Data.Sheet exposing (Column, Row, SheetJSONResponse, Signup, SignupJSONResponse, SignupSlot, decodeColumns, decodeRows, decodeSignupSlots, decodeSignups)
 import Html exposing (..)
-import Html.Attributes exposing (autocomplete, autofocus, class, classList, disabled, for, href, name, placeholder, required, type_, value, style)
+import Html.Attributes exposing (autocomplete, autofocus, class, classList, disabled, for, href, name, placeholder, required, style, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
 import Http
 import HttpBuilder
 import Json.Decode exposing (Decoder, field, map4, map7, string)
 import Json.Encode
+import Toasty
 
 
 -- PORTS
+-- Outbound: notify the JS world the sheet has changed
+
+
+port sheetUpdated : Bool -> Cmd msg
 
 
 port modalOpened : Bool -> Cmd msg
+
+
+
+-- Inbound: the visibility state of the side scroller
+
+
+port isSideScrollerVisible : (Bool -> msg) -> Sub msg
 
 
 
@@ -48,6 +59,7 @@ type Msg
     | ChangeFocusedColumn Column
     | ChangeViewStyle PageViewStyle
     | ToastyMsg (Toasty.Msg String)
+    | ReceiveSideScrollerVisibilityUpdate Bool
 
 
 type alias SheetID =
@@ -105,6 +117,7 @@ type alias Model =
     , isProductionMode : Bool
     , apiKey : String
     , toasties : Toasty.Stack String
+    , isSideScrollerOverflowing : Bool
     }
 
 
@@ -147,6 +160,7 @@ init flags =
         flags.productionMode
         flags.apiKey
         Toasty.initialState
+        False
     , getSheetDetails flags.apiBaseEndpoint flags.sheetId flags.apiKey
     )
 
@@ -237,11 +251,14 @@ update msg model =
                 , isSheetLoading = False
                 , isSheetError = False
               }
-            , Cmd.none
+            , sheetUpdated True
             )
 
         ReceiveSheetDetails (Err err) ->
             ( { model | isSheetLoading = False, isSheetError = True }, Cmd.none )
+
+        ReceiveSideScrollerVisibilityUpdate isVisible ->
+            ( { model | isSideScrollerOverflowing = not isVisible }, Cmd.none )
 
         ChangeSheetID newSheetId ->
             ( { model | sheetId = Just newSheetId }
@@ -401,6 +418,11 @@ viewColumnSideScroller : Model -> Html Msg
 viewColumnSideScroller model =
     div [ class "side-scroller" ]
         [ div [ class "side-scroller__items" ] (viewColumnsSideScrollerItems model)
+        , (if model.isSideScrollerOverflowing then
+            div [ class "fab-button fab-button--right" ] [ i [ class "material-icons" ] [ text "arrow_forward" ] ]
+           else
+            Html.text ""
+          )
         ]
 
 
@@ -828,7 +850,7 @@ signupsForSlot signupSlot signupList =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    isSideScrollerVisible ReceiveSideScrollerVisibilityUpdate
 
 
 
