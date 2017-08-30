@@ -8,7 +8,8 @@ module.exports = {
     },
   module: {
     rules: [
-      { test: /vissense/, loader: 'exports-loader?VisSense!script-loader'}
+      { test: /\.js$/, loader: 'babel-loader', query: { presets: ['es2015'] } },
+      { test: /vissense/, loader: 'exports-loader?VisSense!script-loader'},
     ]
   }
 }

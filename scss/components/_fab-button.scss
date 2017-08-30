@@ -28,6 +28,10 @@ $fab-button-bgcolor: #000000;
     animation: bounce 2s infinite;
   }
 
+  &--noclick {
+    pointer-events: none;
+  }
+
   @keyframes bounce {
   	0%, 20%, 50%, 80%, 100% {
       transform: translateX(0);
