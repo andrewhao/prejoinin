@@ -1,0 +1,46 @@
+$fab-button-size: 30px;
+$fab-button-bgcolor: #000000;
+.fab-button {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: $fab-button-size;
+  height: $fab-button-size;
+  border-radius: $fab-button-size/2;
+  color: $fab-button-bgcolor;
+  font-size: 1.9rem;
+  background-color: #ffffff;
+  box-shadow: -2.5px 0 5.5px 0 rgba(0, 0, 0, 0.18);
+
+  &--right {
+    right: 1rem;
+    top: calc(50% - #{$fab-button-size/2});
+  }
+
+  &--left {
+    left: 1rem;
+    top: calc(50% - #{$fab-button-size/2});
+  }
+
+
+  &--bounce {
+    animation: bounce 2s infinite;
+  }
+
+  &--noclick {
+    pointer-events: none;
+  }
+
+  @keyframes bounce {
+  	0%, 20%, 50%, 80%, 100% {
+      transform: translateX(0);
+    }
+  	40% {
+      transform: translateX(-7px);
+    }
+  	60% {
+      transform: translateX(-3px);
+    }
+  }
+}

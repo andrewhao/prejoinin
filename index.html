@@ -3,6 +3,7 @@
     <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous"> -->
     <link rel="stylesheet" href="http://localhost:3000/assets/application_next.css">
     <link rel="stylesheet" href="/dist/css/application.css">
+    <script src="/dist/js/bundle.js"></script>
     <!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
@@ -42,6 +43,19 @@
         } else {
           bodyClasses.remove("modal-open");
         }
+      });
+
+      app.ports.sheetUpdated.subscribe(function(isUpdated) {
+        setTimeout(function() {
+          var tabs = document.querySelectorAll('.side-scroller__tab');
+          var sideScrollerEl = document.querySelector('.side-scroller');
+          var lastTabEl = tabs[tabs.length-1];
+          visibilityDetection.registerVisibilityChangeHandler(lastTabEl, sideScrollerEl);
+        }, 100);
+      })
+
+      var visibilityDetection = new VisibilityDetection(function(needsArrow) {
+        app.ports.needsRightScrollerArrow.send(needsArrow);
       });
     </script>
   </body>
