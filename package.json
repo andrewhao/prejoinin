@@ -3,15 +3,20 @@
   "version": "0.1.10",
   "description": "Wejoinin signup sheet preview widget.",
   "main": "dist/js/app.js",
-  "dependencies": {},
+  "dependencies": {
+    "vissense": "0.10.0"
+  },
   "devDependencies": {
-    "elm-live": "2.7.5",
     "autoprefixer": "7.1.2",
     "chokidar-cli": "1.2.0",
     "elm-format": "0.6.1-alpha",
+    "elm-live": "2.7.5",
+    "exports-loader": "0.6.4",
     "node-sass-chokidar": "0.0.3",
     "npm-run-all": "4.0.2",
-    "postcss-cli": "4.1.0"
+    "postcss-cli": "4.1.0",
+    "script-loader": "0.7.0",
+    "webpack": "3.5.5"
   },
   "engines": {
     "node": "^8.4.0"
@@ -25,11 +30,12 @@
     "html:build": "mkdir -p dist && cp index.html dist",
     "sass:build": "npm-run-all -p build-task:*",
     "sass:watch": "chokidar 'scss/**/*.scss' -c 'npm run sass:build'",
+    "webpack": "webpack",
     "dev": "npm-run-all -p sass:*",
     "test": "echo \"Error: no test specified\" && exit 1",
     "elm:build": "elm make Main.elm --output=dist/js/app.js",
     "elm:live": "elm live Main.elm --output=dist/js/app.js --open",
-    "compile": "npm-run-all html:build sass:build elm:build"
+    "compile": "npm-run-all html:build sass:build elm:build webpack"
   },
   "repository": {
     "type": "git",
