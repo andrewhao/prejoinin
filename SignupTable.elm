@@ -13,11 +13,11 @@ import Bootstrap.Progress as Progress
 import Bootstrap.Table as Table
 import Data.Sheet exposing (Column, Row, SheetJSONResponse, Signup, SignupJSONResponse, SignupSlot, decodeColumns, decodeRows, decodeSignupSlots, decodeSignups)
 import Html exposing (..)
-import Html.Attributes exposing (autocomplete, autofocus, class, classList, disabled, for, href, name, placeholder, required, style, type_, value)
+import Html.Attributes exposing (autocomplete, autofocus, class, classList, disabled, for, href, name, novalidate, placeholder, required, style, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
 import Http
 import HttpBuilder
-import Json.Decode exposing (Decoder, field, map4, map7, string)
+import Json.Decode exposing (Decoder, bool, field, map4, map8, string)
 import Json.Encode
 import Toasty
 
@@ -118,6 +118,7 @@ type alias Model =
     , apiKey : String
     , toasties : Toasty.Stack String
     , needsRightScrollerArrow : Bool
+    , isNameVisible : Bool
     }
 
 
@@ -161,6 +162,7 @@ init flags =
         flags.apiKey
         Toasty.initialState
         False
+        True
     , getSheetDetails flags.apiBaseEndpoint flags.sheetId flags.apiKey
     )
 
@@ -250,6 +252,7 @@ update msg model =
                     )
                 , isSheetLoading = False
                 , isSheetError = False
+                , isNameVisible = jsonResponse.isNameVisible
               }
             , sheetUpdated True
             )
@@ -363,7 +366,7 @@ view model =
         [ (if not model.isProductionMode then
             viewDevelopmentDebugHeader model
            else
-            div [] []
+            Html.text ""
           )
         , div [ class "sheet" ]
             (if (not (isSheetDefined model)) || (isSheetError model) then
@@ -475,7 +478,7 @@ viewCardForSlot model signupSlot =
                     |> Card.view
 
             Nothing ->
-                div [] []
+                Html.text ""
 
 
 signupSlotsForColumn : Model -> Maybe Column -> List SignupSlot
@@ -821,13 +824,21 @@ viewSignup : Signup -> Html Msg
 viewSignup signup =
     let
         signupText =
-            (if String.isEmpty signup.comment then
+            (if not model.isNameVisible then
+                "Name withheld"
+             else if String.isEmpty signup.comment then
                 signup.name
              else
                 (signup.name ++ " (" ++ signup.comment ++ ")")
             )
     in
-        div [ class "signup-list__signup" ] [ text signupText ]
+        div
+            [ classList
+                [ ( "signup-list__signup", True )
+                , ( "signup-list__signup--private", not model.isNameVisible )
+                ]
+            ]
+            [ text signupText ]
 
 
 viewSignupSlotTitle : Model -> SignupSlot -> String
@@ -908,7 +919,7 @@ decodeSignupResponse =
 
 decodeSheetResponse : Decoder SheetJSONResponse
 decodeSheetResponse =
-    map7 SheetJSONResponse
+    map8 SheetJSONResponse
         (field "id" string)
         (field "title" string)
         (field "description" string)
@@ -916,3 +927,4 @@ decodeSheetResponse =
         (field "columns" decodeColumns)
         (field "signup_slots" decodeSignupSlots)
         (field "signups" decodeSignups)
+        (field "is_name_visible" bool)

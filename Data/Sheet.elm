@@ -23,6 +23,7 @@ type alias SheetJSONResponse =
     , columns : List Column
     , signupSlots : List SignupSlot
     , signups : List Signup
+    , isNameVisible : Bool
     }
 
 
