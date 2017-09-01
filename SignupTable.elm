@@ -13,11 +13,11 @@ import Bootstrap.Progress as Progress
 import Bootstrap.Table as Table
 import Data.Sheet exposing (Column, Row, SheetJSONResponse, Signup, SignupJSONResponse, SignupSlot, decodeColumns, decodeRows, decodeSignupSlots, decodeSignups)
 import Html exposing (..)
-import Html.Attributes exposing (autocomplete, autofocus, class, classList, disabled, for, href, name, placeholder, required, style, type_, value)
+import Html.Attributes exposing (autocomplete, autofocus, class, classList, disabled, for, href, name, novalidate, placeholder, required, style, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
 import Http
 import HttpBuilder
-import Json.Decode exposing (Decoder, field, map4, map7, string)
+import Json.Decode exposing (Decoder, bool, field, map4, map8, string)
 import Json.Encode
 import Toasty
 
@@ -118,6 +118,7 @@ type alias Model =
     , apiKey : String
     , toasties : Toasty.Stack String
     , needsRightScrollerArrow : Bool
+    , isNameVisible : Bool
     }
 
 
@@ -161,6 +162,7 @@ init flags =
         flags.apiKey
         Toasty.initialState
         False
+        True
     , getSheetDetails flags.apiBaseEndpoint flags.sheetId flags.apiKey
     )
 
@@ -212,25 +214,26 @@ update msg model =
             ( { model | isSheetLoading = True }, getSheetDetails model.apiBaseEndpoint model.sheetId model.apiKey )
 
         SubmitNewSignup ->
+            ( model, createSignup model )
+
+        ReceiveSignupResponse (Err err) ->
+            ( model, Cmd.none )
+                |> Toasty.addToast defaultToastConfig ToastyMsg ("We've encountered an error with your signup. Please check your signup fields and try again later.")
+
+        ReceiveSignupResponse (Ok jsonResponse) ->
             let
                 focusedSignupSlotMaybe =
                     (getSignupSlot model model.focusedSlotId)
             in
                 case focusedSignupSlotMaybe of
                     Just focusedSignupSlot ->
-                        ( model, createSignup model )
+                        model
+                            |> defocusSlot
                             |> Toasty.addToast defaultToastConfig ToastyMsg ("You've signed up for " ++ (viewSignupSlotTitle model focusedSignupSlot) ++ ". A confirmation email has been sent to your email address.")
+                            |> Tuple.mapSecond (\cmd -> Cmd.batch [ cmd, getSheetDetails model.apiBaseEndpoint model.sheetId model.apiKey ])
 
                     Nothing ->
                         ( model, Cmd.none )
-
-        ReceiveSignupResponse (Err err) ->
-            ( model, Cmd.none )
-
-        ReceiveSignupResponse (Ok jsonResponse) ->
-            model
-                |> defocusSlot
-                |> Tuple.mapSecond (\cmd -> Cmd.batch [ cmd, getSheetDetails model.apiBaseEndpoint model.sheetId model.apiKey ])
 
         ReceiveSheetDetails (Ok jsonResponse) ->
             ( { model
@@ -250,6 +253,7 @@ update msg model =
                     )
                 , isSheetLoading = False
                 , isSheetError = False
+                , isNameVisible = jsonResponse.isNameVisible
               }
             , sheetUpdated True
             )
@@ -363,7 +367,7 @@ view model =
         [ (if not model.isProductionMode then
             viewDevelopmentDebugHeader model
            else
-            div [] []
+            Html.text ""
           )
         , div [ class "sheet" ]
             (if (not (isSheetDefined model)) || (isSheetError model) then
@@ -475,7 +479,7 @@ viewCardForSlot model signupSlot =
                     |> Card.view
 
             Nothing ->
-                div [] []
+                Html.text ""
 
 
 signupSlotsForColumn : Model -> Maybe Column -> List SignupSlot
@@ -612,7 +616,7 @@ viewSignupSlot signupSlot model =
             ]
             [ div [ class "signup-list" ]
                 (List.append
-                    (viewSignupsForSlot signupSlot model.signups)
+                    (viewSignupsForSlot model signupSlot model.signups)
                     [ focusedSignupSlot model isFocused ]
                 )
             , if (isSignupSlotFull model signupSlot) then
@@ -650,7 +654,7 @@ viewSignupSlotAsCard model signupSlot =
             ]
             [ div [ class "signup-list" ]
                 (List.append
-                    (viewSignupsForSlot signupSlot model.signups)
+                    (viewSignupsForSlot model signupSlot model.signups)
                     [ focusedSignupSlot model isFocused ]
                 )
             , if (isSignupSlotFull model signupSlot) then
@@ -685,13 +689,14 @@ focusedSignupSlot model isFocused =
     in
         if isFocused && (not allSignupInputBlank) then
             viewSignup
+                model
                 (Signup ""
                     (Maybe.withDefault "" model.currentNewSignupEmail)
                     (Maybe.withDefault "" model.currentNewSignupName)
                     (Maybe.withDefault "" model.currentNewSignupComment)
                 )
         else
-            div [] []
+            Html.text ""
 
 
 popoverStateForSignupSlot : Model -> SignupSlot -> Popover.State
@@ -778,16 +783,19 @@ viewSignupRawForm : SignupSlot -> Model -> Bool -> Html Msg
 viewSignupRawForm signupSlot model isFocused =
     div [ classList [ ( "signup-cell__form", True ), ( "signup-cell__form-focus", isFocused ) ] ]
         [ Form.form [ onSubmit SubmitNewSignup ]
-            [ Form.group []
+            [ Form.group
+                []
                 [ Input.text
                     [ Input.onInput EditNewSignupName
-                    , Input.attrs [ type_ "text", name "name", placeholder "Name", autofocus True, autocomplete False, onInput EditNewSignupName, required True ]
+                    , Input.value <| Maybe.withDefault "" model.currentNewSignupName
+                    , Input.attrs [ type_ "text", name "name", placeholder "Name", autofocus True, autocomplete False, required True ]
                     ]
                 , Form.help [] [ text "Your name to sign up with" ]
                 ]
             , Form.group []
                 [ Input.email
                     [ Input.onInput EditNewSignupEmail
+                    , Input.value <| Maybe.withDefault "" model.currentNewSignupEmail
                     , Input.attrs [ type_ "email", name "email", placeholder "Email", autocomplete False, required True ]
                     ]
                 , Form.help [] [ text "You will be emailed a confirmation to this address." ]
@@ -795,6 +803,7 @@ viewSignupRawForm signupSlot model isFocused =
             , Form.group []
                 [ Textarea.textarea
                     [ Textarea.onInput EditNewSignupComment
+                    , Textarea.value <| Maybe.withDefault "" model.currentNewSignupComment
                     , Textarea.attrs [ name "comment", autocomplete False, placeholder "Comment (optional)" ]
                     ]
                 , Form.help [] [ text "Anything other information you want to include" ]
@@ -808,26 +817,34 @@ viewSignupRawForm signupSlot model isFocused =
         ]
 
 
-viewSignupsForSlot : SignupSlot -> List Signup -> List (Html Msg)
-viewSignupsForSlot signupSlot signupList =
+viewSignupsForSlot : Model -> SignupSlot -> List Signup -> List (Html Msg)
+viewSignupsForSlot model signupSlot signupList =
     let
         filteredSignups =
             signupsForSlot signupSlot signupList
     in
-        List.map viewSignup filteredSignups
+        List.map (viewSignup model) filteredSignups
 
 
-viewSignup : Signup -> Html Msg
-viewSignup signup =
+viewSignup : Model -> Signup -> Html Msg
+viewSignup model signup =
     let
         signupText =
-            (if String.isEmpty signup.comment then
+            (if not model.isNameVisible then
+                "Name withheld"
+             else if String.isEmpty signup.comment then
                 signup.name
              else
                 (signup.name ++ " (" ++ signup.comment ++ ")")
             )
     in
-        div [ class "signup-list__signup" ] [ text signupText ]
+        div
+            [ classList
+                [ ( "signup-list__signup", True )
+                , ( "signup-list__signup--private", not model.isNameVisible )
+                ]
+            ]
+            [ text signupText ]
 
 
 viewSignupSlotTitle : Model -> SignupSlot -> String
@@ -850,7 +867,9 @@ signupsForSlot signupSlot signupList =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    needsRightScrollerArrow ReceiveNeedsRightScrollerArrowUpdate
+    Sub.batch
+        [ needsRightScrollerArrow ReceiveNeedsRightScrollerArrowUpdate
+        ]
 
 
 
@@ -908,7 +927,7 @@ decodeSignupResponse =
 
 decodeSheetResponse : Decoder SheetJSONResponse
 decodeSheetResponse =
-    map7 SheetJSONResponse
+    map8 SheetJSONResponse
         (field "id" string)
         (field "title" string)
         (field "description" string)
@@ -916,3 +935,4 @@ decodeSheetResponse =
         (field "columns" decodeColumns)
         (field "signup_slots" decodeSignupSlots)
         (field "signups" decodeSignups)
+        (field "is_name_visible" bool)
