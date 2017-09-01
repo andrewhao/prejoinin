@@ -4,6 +4,7 @@
   "description": "Wejoinin signup sheet preview widget.",
   "main": "dist/js/app.js",
   "dependencies": {
+    "jquery": "3.2.1",
     "vissense": "0.10.0"
   },
   "devDependencies": {

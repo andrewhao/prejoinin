@@ -40,6 +40,13 @@ port needsRightScrollerArrow : (Bool -> msg) -> Sub msg
 
 
 
+-- Inbound: If browser autofill overrides our inputs.
+
+
+port browserAutofillOverride : (( String, String, String ) -> msg) -> Sub msg
+
+
+
 -- MESSAGES
 
 
@@ -60,6 +67,7 @@ type Msg
     | ChangeViewStyle PageViewStyle
     | ToastyMsg (Toasty.Msg String)
     | ReceiveNeedsRightScrollerArrowUpdate Bool
+    | BrowserAutofillFormOverride ( String, String, String )
 
 
 type alias SheetID =
@@ -204,6 +212,15 @@ defaultToastConfig =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        BrowserAutofillFormOverride ( nameField, emailField, commentField ) ->
+            ( { model
+                | currentNewSignupName = Just (Debug.log "nameField" nameField)
+                , currentNewSignupEmail = Just emailField
+                , currentNewSignupComment = Just commentField
+              }
+            , Cmd.none
+            )
+
         ChangeViewStyle viewStyle ->
             ( { model | viewStyle = viewStyle }, Cmd.none )
 
@@ -787,13 +804,15 @@ viewSignupRawForm signupSlot model isFocused =
                 []
                 [ Input.text
                     [ Input.onInput EditNewSignupName
-                    , Input.attrs [ type_ "text", name "name", placeholder "Name", autofocus True, autocomplete False, onInput EditNewSignupName, required True ]
+                    , Input.value <| Maybe.withDefault "" model.currentNewSignupName
+                    , Input.attrs [ type_ "text", name "name", placeholder "Name", autofocus True, autocomplete False, required True ]
                     ]
                 , Form.help [] [ text "Your name to sign up with" ]
                 ]
             , Form.group []
                 [ Input.email
                     [ Input.onInput EditNewSignupEmail
+                    , Input.value <| Maybe.withDefault "" model.currentNewSignupEmail
                     , Input.attrs [ type_ "email", name "email", placeholder "Email", autocomplete False, required True ]
                     ]
                 , Form.help [] [ text "You will be emailed a confirmation to this address." ]
@@ -801,6 +820,7 @@ viewSignupRawForm signupSlot model isFocused =
             , Form.group []
                 [ Textarea.textarea
                     [ Textarea.onInput EditNewSignupComment
+                    , Textarea.value <| Maybe.withDefault "" model.currentNewSignupComment
                     , Textarea.attrs [ name "comment", autocomplete False, placeholder "Comment (optional)" ]
                     ]
                 , Form.help [] [ text "Anything other information you want to include" ]
@@ -864,7 +884,10 @@ signupsForSlot signupSlot signupList =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    needsRightScrollerArrow ReceiveNeedsRightScrollerArrowUpdate
+    Sub.batch
+        [ needsRightScrollerArrow ReceiveNeedsRightScrollerArrowUpdate
+        , browserAutofillOverride BrowserAutofillFormOverride
+        ]
 
 
 
