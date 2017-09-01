@@ -43,14 +43,7 @@
         } else {
           bodyClasses.remove("modal-open");
         }
-
-        setTimeout(function() {
-          var inputEls = document.querySelectorAll('.modal.show input');
-          
-        }, 20);
       });
-
-
 
       app.ports.sheetUpdated.subscribe(function(isUpdated) {
         setTimeout(function() {

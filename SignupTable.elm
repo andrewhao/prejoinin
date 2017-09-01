@@ -40,13 +40,6 @@ port needsRightScrollerArrow : (Bool -> msg) -> Sub msg
 
 
 
--- Inbound: If browser autofill overrides our inputs.
-
-
-port browserAutofillOverride : (( String, String, String ) -> msg) -> Sub msg
-
-
-
 -- MESSAGES
 
 
@@ -67,7 +60,6 @@ type Msg
     | ChangeViewStyle PageViewStyle
     | ToastyMsg (Toasty.Msg String)
     | ReceiveNeedsRightScrollerArrowUpdate Bool
-    | BrowserAutofillFormOverride ( String, String, String )
 
 
 type alias SheetID =
@@ -212,15 +204,6 @@ defaultToastConfig =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        BrowserAutofillFormOverride ( nameField, emailField, commentField ) ->
-            ( { model
-                | currentNewSignupName = Just (Debug.log "nameField" nameField)
-                , currentNewSignupEmail = Just emailField
-                , currentNewSignupComment = Just commentField
-              }
-            , Cmd.none
-            )
-
         ChangeViewStyle viewStyle ->
             ( { model | viewStyle = viewStyle }, Cmd.none )
 
@@ -886,7 +869,6 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ needsRightScrollerArrow ReceiveNeedsRightScrollerArrowUpdate
-        , browserAutofillOverride BrowserAutofillFormOverride
         ]
 
 
