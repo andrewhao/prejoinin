@@ -1,6 +1,6 @@
 {
   "name": "prejoinin",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "Wejoinin signup sheet preview widget.",
   "main": "dist/js/app.js",
   "dependencies": {
