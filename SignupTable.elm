@@ -214,25 +214,26 @@ update msg model =
             ( { model | isSheetLoading = True }, getSheetDetails model.apiBaseEndpoint model.sheetId model.apiKey )
 
         SubmitNewSignup ->
+            ( model, createSignup model )
+
+        ReceiveSignupResponse (Err err) ->
+            ( model, Cmd.none )
+                |> Toasty.addToast defaultToastConfig ToastyMsg ("We've encountered an error with your signup. Please check your signup fields and try again later.")
+
+        ReceiveSignupResponse (Ok jsonResponse) ->
             let
                 focusedSignupSlotMaybe =
                     (getSignupSlot model model.focusedSlotId)
             in
                 case focusedSignupSlotMaybe of
                     Just focusedSignupSlot ->
-                        ( model, createSignup model )
+                        model
+                            |> defocusSlot
                             |> Toasty.addToast defaultToastConfig ToastyMsg ("You've signed up for " ++ (viewSignupSlotTitle model focusedSignupSlot) ++ ". A confirmation email has been sent to your email address.")
+                            |> Tuple.mapSecond (\cmd -> Cmd.batch [ cmd, getSheetDetails model.apiBaseEndpoint model.sheetId model.apiKey ])
 
                     Nothing ->
                         ( model, Cmd.none )
-
-        ReceiveSignupResponse (Err err) ->
-            ( model, Cmd.none )
-
-        ReceiveSignupResponse (Ok jsonResponse) ->
-            model
-                |> defocusSlot
-                |> Tuple.mapSecond (\cmd -> Cmd.batch [ cmd, getSheetDetails model.apiBaseEndpoint model.sheetId model.apiKey ])
 
         ReceiveSheetDetails (Ok jsonResponse) ->
             ( { model
@@ -615,7 +616,7 @@ viewSignupSlot signupSlot model =
             ]
             [ div [ class "signup-list" ]
                 (List.append
-                    (viewSignupsForSlot signupSlot model.signups)
+                    (viewSignupsForSlot model signupSlot model.signups)
                     [ focusedSignupSlot model isFocused ]
                 )
             , if (isSignupSlotFull model signupSlot) then
@@ -653,7 +654,7 @@ viewSignupSlotAsCard model signupSlot =
             ]
             [ div [ class "signup-list" ]
                 (List.append
-                    (viewSignupsForSlot signupSlot model.signups)
+                    (viewSignupsForSlot model signupSlot model.signups)
                     [ focusedSignupSlot model isFocused ]
                 )
             , if (isSignupSlotFull model signupSlot) then
@@ -688,13 +689,14 @@ focusedSignupSlot model isFocused =
     in
         if isFocused && (not allSignupInputBlank) then
             viewSignup
+                model
                 (Signup ""
                     (Maybe.withDefault "" model.currentNewSignupEmail)
                     (Maybe.withDefault "" model.currentNewSignupName)
                     (Maybe.withDefault "" model.currentNewSignupComment)
                 )
         else
-            div [] []
+            Html.text ""
 
 
 popoverStateForSignupSlot : Model -> SignupSlot -> Popover.State
@@ -781,7 +783,8 @@ viewSignupRawForm : SignupSlot -> Model -> Bool -> Html Msg
 viewSignupRawForm signupSlot model isFocused =
     div [ classList [ ( "signup-cell__form", True ), ( "signup-cell__form-focus", isFocused ) ] ]
         [ Form.form [ onSubmit SubmitNewSignup ]
-            [ Form.group []
+            [ Form.group
+                []
                 [ Input.text
                     [ Input.onInput EditNewSignupName
                     , Input.attrs [ type_ "text", name "name", placeholder "Name", autofocus True, autocomplete False, onInput EditNewSignupName, required True ]
@@ -811,17 +814,17 @@ viewSignupRawForm signupSlot model isFocused =
         ]
 
 
-viewSignupsForSlot : SignupSlot -> List Signup -> List (Html Msg)
-viewSignupsForSlot signupSlot signupList =
+viewSignupsForSlot : Model -> SignupSlot -> List Signup -> List (Html Msg)
+viewSignupsForSlot model signupSlot signupList =
     let
         filteredSignups =
             signupsForSlot signupSlot signupList
     in
-        List.map viewSignup filteredSignups
+        List.map (viewSignup model) filteredSignups
 
 
-viewSignup : Signup -> Html Msg
-viewSignup signup =
+viewSignup : Model -> Signup -> Html Msg
+viewSignup model signup =
     let
         signupText =
             (if not model.isNameVisible then
