@@ -229,7 +229,7 @@ update msg model =
                     Just focusedSignupSlot ->
                         model
                             |> defocusSlot
-                            |> Toasty.addToast defaultToastConfig ToastyMsg ("You've signed up for " ++ (viewSignupSlotTitle model focusedSignupSlot) ++ ". A confirmation email has been sent to your email address.")
+                            |> Toasty.addToast defaultToastConfig ToastyMsg ("You've signed up for " ++ (viewSignupSlotTitle model focusedSignupSlot) ++ ". A confirmation email has been sent to " ++ (Maybe.withDefault "" model.currentNewSignupEmail) ++ ".")
                             |> Tuple.mapSecond (\cmd -> Cmd.batch [ cmd, getSheetDetails model.apiBaseEndpoint model.sheetId model.apiKey ])
 
                     Nothing ->
@@ -346,8 +346,6 @@ defocusSlot : Model -> ( Model, Cmd Msg )
 defocusSlot model =
     ( { model
         | focusedSlotId = Nothing
-        , currentNewSignupName = Nothing
-        , currentNewSignupEmail = Nothing
         , currentNewSignupComment = Nothing
         , signupSlotPopovers = initializeSignupSlotPopovers model.signupSlots
         , signupSlotModals = initializeSignupSlotModals model.signupSlots
@@ -543,6 +541,14 @@ viewDevelopmentDebugHeader model =
                         [ ButtonGroup.radioButton (model.viewStyle == CardView) [ Button.primary, Button.onClick <| ChangeViewStyle CardView ] [ text "Cards" ]
                         , ButtonGroup.radioButton (model.viewStyle == TableView) [ Button.primary, Button.onClick <| ChangeViewStyle TableView ] [ text "Table" ]
                         ]
+                    ]
+                ]
+        , Card.config []
+            |> Card.header []
+                [ text "Edit sheet" ]
+            |> Card.block []
+                [ Card.text []
+                    [ a [ href ("http://localhost:3000/sheets/" ++ (Maybe.withDefault "" model.sheetId) ++ "/edit") ] [ text "Edit sheet" ]
                     ]
                 ]
         ]
