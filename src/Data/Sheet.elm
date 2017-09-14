@@ -6,16 +6,13 @@
 
 module Data.Sheet exposing (..)
 
--- import Html.Attributes exposing (title)
-
 import Json.Decode exposing (Decoder, bool, field, int, map3, map4, map5, string)
 
 
--- import SignupTable exposing (SignupID, SignupSlotID)
 -- MODEL
 
 
-type alias SheetJSONResponse =
+type alias Sheet =
     { id : String
     , title : String
     , description : String
@@ -24,14 +21,6 @@ type alias SheetJSONResponse =
     , signupSlots : List SignupSlot
     , signups : List Signup
     , isNameVisible : Bool
-    }
-
-
-type alias SignupJSONResponse =
-    { id : String
-    , signupSlotId : String
-    , name : String
-    , comment : String
     }
 
 
@@ -64,6 +53,22 @@ type alias Signup =
     , name : String
     , comment : String
     }
+
+
+type alias SheetID =
+    String
+
+
+type alias RowID =
+    String
+
+
+type alias SignupSlotID =
+    String
+
+
+type alias SignupID =
+    String
 
 
 

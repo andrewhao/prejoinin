@@ -5,7 +5,7 @@
   "main": "dist/js/app.js",
   "dependencies": {
     "jquery": "3.2.1",
-    "vissense": "0.10.0"
+    "vissense": "^0.10.0"
   },
   "devDependencies": {
     "autoprefixer": "7.1.2",
@@ -37,8 +37,8 @@
     "webpack": "webpack",
     "dev": "npm-run-all -p sass:*",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "elm:build": "elm make Main.elm --output=dist/js/app.js",
-    "elm:live": "elm live Main.elm --output=dist/js/app.js --open",
+    "elm:build": "elm make src/Main.elm --output=dist/js/app.js",
+    "elm:live": "elm live src/Main.elm --output=dist/js/app.js --open --debug",
     "compile": "npm-run-all html:build sass:build elm:build webpack"
   },
   "repository": {

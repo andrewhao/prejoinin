@@ -1,4 +1,4 @@
-port module SignupTable exposing (Msg(..), Model, Flags, init, update, view, subscriptions)
+port module Page.Sheet exposing (Msg(..), Model, Flags, init, update, view, subscriptions)
 
 import Bootstrap.Alert as Alert
 import Bootstrap.Button as Button
@@ -11,7 +11,7 @@ import Bootstrap.Modal as Modal
 import Bootstrap.Popover as Popover
 import Bootstrap.Progress as Progress
 import Bootstrap.Table as Table
-import Data.Sheet exposing (Column, Row, SheetJSONResponse, Signup, SignupJSONResponse, SignupSlot, decodeColumns, decodeRows, decodeSignupSlots, decodeSignups)
+import Data.Sheet exposing (Column, Row, Sheet, Signup, Signup, SignupSlot, SheetID, RowID, SignupSlotID, SignupID, decodeColumns, decodeRows, decodeSignupSlots, decodeSignups)
 import Html exposing (..)
 import Html.Attributes exposing (autocomplete, autofocus, class, classList, disabled, for, href, name, novalidate, placeholder, required, style, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
@@ -45,14 +45,14 @@ port needsRightScrollerArrow : (Bool -> msg) -> Sub msg
 
 type Msg
     = FetchSheet
-    | ReceiveSheetDetails (Result Http.Error SheetJSONResponse)
-    | ReceiveSignupResponse (Result Http.Error SignupJSONResponse)
+    | ReceiveSheetDetails (Result Http.Error Sheet)
+    | ReceiveSignupResponse (Result Http.Error Signup)
     | ChangeSheetID SheetID
     | FocusSlotJoin SignupSlotID
+    | CancelSlotFocus SignupSlotID
     | EditNewSignupName String
     | EditNewSignupEmail String
     | EditNewSignupComment String
-    | CancelSlotFocus SignupSlotID
     | SubmitNewSignup
     | PopoverMsg SignupSlotID Popover.State
     | ModalMsg SignupSlotID Modal.State
@@ -60,22 +60,6 @@ type Msg
     | ChangeViewStyle PageViewStyle
     | ToastyMsg (Toasty.Msg String)
     | ReceiveNeedsRightScrollerArrowUpdate Bool
-
-
-type alias SheetID =
-    String
-
-
-type alias RowID =
-    String
-
-
-type alias SignupSlotID =
-    String
-
-
-type alias SignupID =
-    String
 
 
 type alias SignupSlotPopover =
@@ -922,18 +906,18 @@ getSheetDetails apiBaseEndpoint maybeSheetId apiKey =
                 Cmd.none
 
 
-decodeSignupResponse : Decoder SignupJSONResponse
+decodeSignupResponse : Decoder Signup
 decodeSignupResponse =
-    map4 SignupJSONResponse
+    map4 Signup
         (field "id" string)
         (field "signup_slot_id" string)
         (field "name" string)
         (field "comment" string)
 
 
-decodeSheetResponse : Decoder SheetJSONResponse
+decodeSheetResponse : Decoder Sheet
 decodeSheetResponse =
-    map8 SheetJSONResponse
+    map8 Sheet
         (field "id" string)
         (field "title" string)
         (field "description" string)

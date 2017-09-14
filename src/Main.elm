@@ -1,7 +1,7 @@
 module Main exposing (..)
 
 import Html exposing (..)
-import SignupTable exposing (..)
+import Page.Sheet exposing (..)
 
 
 main : Program Flags Model Msg
