@@ -71,6 +71,18 @@ type alias SignupID =
     String
 
 
+type alias Name =
+    String
+
+
+type alias Email =
+    String
+
+
+type alias Comment =
+    String
+
+
 
 -- JSON
 

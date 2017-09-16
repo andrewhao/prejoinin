@@ -8,18 +8,14 @@ import Bootstrap.Form as Form
 import Bootstrap.Form.Input as Input
 import Bootstrap.Form.Textarea as Textarea
 import Bootstrap.Modal as Modal
-import Bootstrap.Popover as Popover
 import Bootstrap.Progress as Progress
-import Bootstrap.Table as Table
 import Data.Sheet exposing (Column, Row, Sheet, Signup, Signup, SignupSlot, SheetID, RowID, SignupSlotID, SignupID, decodeColumns, decodeRows, decodeSignupSlots, decodeSignups)
 import Html exposing (..)
 import Html.Attributes exposing (autocomplete, autofocus, class, classList, disabled, for, href, name, novalidate, placeholder, required, style, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
 import Http
-import HttpBuilder
-import Json.Decode exposing (Decoder, bool, field, map4, map8, string)
-import Json.Encode
 import Toasty
+import Request.Sheet exposing (getSheetDetails, createSignup)
 
 
 -- PORTS
@@ -54,18 +50,11 @@ type Msg
     | EditNewSignupEmail String
     | EditNewSignupComment String
     | SubmitNewSignup
-    | PopoverMsg SignupSlotID Popover.State
     | ModalMsg SignupSlotID Modal.State
     | ChangeFocusedColumn Column
     | ChangeViewStyle PageViewStyle
     | ToastyMsg (Toasty.Msg String)
     | ReceiveNeedsRightScrollerArrowUpdate Bool
-
-
-type alias SignupSlotPopover =
-    { signupSlotId : SignupSlotID
-    , popoverState : Popover.State
-    }
 
 
 type alias SignupSlotModal =
@@ -80,7 +69,7 @@ type PageViewStyle
 
 
 type alias Model =
-    { sheetId : Maybe SheetID
+    { sheetId : SheetID
     , apiBaseEndpoint : String
     , title : String
     , description : String
@@ -92,7 +81,6 @@ type alias Model =
     , currentNewSignupName : Maybe String
     , currentNewSignupEmail : Maybe String
     , currentNewSignupComment : Maybe String
-    , signupSlotPopovers : List SignupSlotPopover
     , signupSlotModals : List SignupSlotModal
     , focusedColumn : Maybe Column
     , viewStyle : PageViewStyle
@@ -111,7 +99,7 @@ type alias Sortable a =
 
 
 type alias Flags =
-    { sheetId : Maybe SheetID
+    { sheetId : SheetID
     , apiBaseEndpoint : String
     , productionMode : Bool
     , apiKey : String
@@ -137,7 +125,6 @@ init flags =
         Nothing
         Nothing
         []
-        []
         Nothing
         CardView
         True
@@ -148,17 +135,8 @@ init flags =
         False
         True
     , getSheetDetails flags.apiBaseEndpoint flags.sheetId flags.apiKey
+        |> Http.send ReceiveSheetDetails
     )
-
-
-initializeSignupSlotPopovers : List SignupSlot -> List SignupSlotPopover
-initializeSignupSlotPopovers signupSlotList =
-    List.map initializeSignupSlotPopover signupSlotList
-
-
-initializeSignupSlotPopover : SignupSlot -> SignupSlotPopover
-initializeSignupSlotPopover signupSlot =
-    { signupSlotId = signupSlot.id, popoverState = Popover.initialState }
 
 
 initializeSignupSlotModals : List SignupSlot -> List SignupSlotModal
@@ -195,10 +173,21 @@ update msg model =
             ( { model | focusedColumn = Just column }, Cmd.none )
 
         FetchSheet ->
-            ( { model | isSheetLoading = True }, getSheetDetails model.apiBaseEndpoint model.sheetId model.apiKey )
+            ( { model | isSheetLoading = True }
+            , getSheetDetails model.apiBaseEndpoint model.sheetId model.apiKey |> Http.send ReceiveSheetDetails
+            )
 
         SubmitNewSignup ->
-            ( model, createSignup model )
+            ( model
+            , createSignup
+                model.apiBaseEndpoint
+                model.apiKey
+                model.focusedSlotId
+                model.currentNewSignupName
+                model.currentNewSignupEmail
+                model.currentNewSignupComment
+                |> Http.send ReceiveSignupResponse
+            )
 
         ReceiveSignupResponse (Err err) ->
             ( model, Cmd.none )
@@ -213,8 +202,8 @@ update msg model =
                     Just focusedSignupSlot ->
                         model
                             |> defocusSlot
-                            |> Toasty.addToast defaultToastConfig ToastyMsg ("You've signed up for " ++ (viewSignupSlotTitle model focusedSignupSlot) ++ ". A confirmation email has been sent to " ++ (Maybe.withDefault "" model.currentNewSignupEmail) ++ ".")
-                            |> Tuple.mapSecond (\cmd -> Cmd.batch [ cmd, getSheetDetails model.apiBaseEndpoint model.sheetId model.apiKey ])
+                            |> Toasty.addToast defaultToastConfig ToastyMsg ("You've signed up for " ++ (viewSignupSlotTitle model focusedSignupSlot) ++ ". A confirmation email has been sent to your email address.")
+                            |> Tuple.mapSecond (\cmd -> Cmd.batch [ cmd, getSheetDetails model.apiBaseEndpoint model.sheetId model.apiKey |> Http.send ReceiveSheetDetails ])
 
                     Nothing ->
                         ( model, Cmd.none )
@@ -227,7 +216,6 @@ update msg model =
                 , columns = jsonResponse.columns
                 , signupSlots = jsonResponse.signupSlots
                 , signups = jsonResponse.signups
-                , signupSlotPopovers = (initializeSignupSlotPopovers jsonResponse.signupSlots)
                 , signupSlotModals = (initializeSignupSlotModals jsonResponse.signupSlots)
                 , focusedColumn =
                     (if model.focusedColumn == Nothing then
@@ -249,7 +237,7 @@ update msg model =
             ( { model | needsRightScrollerArrow = needsRightScroller }, Cmd.none )
 
         ChangeSheetID newSheetId ->
-            ( { model | sheetId = Just newSheetId }
+            ( { model | sheetId = newSheetId }
             , Cmd.none
             )
 
@@ -267,14 +255,6 @@ update msg model =
 
         CancelSlotFocus slotId ->
             defocusSlot model
-
-        PopoverMsg slotId state ->
-            let
-                updatedSignupSlotPopovers =
-                    updateStateForPopoverInSlot state slotId model.signupSlotPopovers
-            in
-                { model | signupSlotPopovers = updatedSignupSlotPopovers }
-                    |> update (FocusSlotJoin slotId)
 
         ModalMsg slotId state ->
             let
@@ -300,19 +280,6 @@ getSignupSlot model signupSlotIdMaybe =
             Nothing
 
 
-updateStateForPopoverInSlot : Popover.State -> SignupSlotID -> List SignupSlotPopover -> List SignupSlotPopover
-updateStateForPopoverInSlot popoverState signupSlotId signupSlotPopoverList =
-    List.map
-        (\slotPopover ->
-            (if slotPopover.signupSlotId == signupSlotId then
-                { slotPopover | popoverState = popoverState }
-             else
-                { slotPopover | popoverState = Popover.initialState }
-            )
-        )
-        signupSlotPopoverList
-
-
 updateStateForModalInSlot : Modal.State -> SignupSlotID -> List SignupSlotModal -> List SignupSlotModal
 updateStateForModalInSlot modalState signupSlotId signupSlotModalList =
     List.map
@@ -330,8 +297,9 @@ defocusSlot : Model -> ( Model, Cmd Msg )
 defocusSlot model =
     ( { model
         | focusedSlotId = Nothing
+        , currentNewSignupName = Nothing
+        , currentNewSignupEmail = Nothing
         , currentNewSignupComment = Nothing
-        , signupSlotPopovers = initializeSignupSlotPopovers model.signupSlots
         , signupSlotModals = initializeSignupSlotModals model.signupSlots
       }
     , (modalOpened False)
@@ -352,7 +320,7 @@ view model =
             Html.text ""
           )
         , div [ class "sheet" ]
-            (if (not (isSheetDefined model)) || (isSheetError model) then
+            (if (isSheetError model) then
                 [ Alert.danger [ text "Uh oh! We are having difficulty accessing your sheet. We've been notified - please try again later." ] ]
              else if isSheetLoading model then
                 [ div []
@@ -362,10 +330,7 @@ view model =
              else
                 [ h1 [ class "sheet__title" ] [ text (model.title) ]
                 , p [ class "sheet__description" ] [ text (model.description) ]
-                , if model.viewStyle == CardView then
-                    viewCard model
-                  else
-                    viewTable model
+                , viewCard model
                 ]
             )
         , Toasty.view defaultToastConfig renderToast ToastyMsg model.toasties
@@ -385,11 +350,6 @@ isSheetError model =
 isSheetLoading : Model -> Bool
 isSheetLoading model =
     model.isSheetLoading == True
-
-
-isSheetDefined : Model -> Bool
-isSheetDefined model =
-    model.sheetId /= Nothing
 
 
 viewCard : Model -> Html Msg
@@ -509,7 +469,7 @@ viewDevelopmentDebugHeader model =
                     [ Form.form []
                         [ Form.group []
                             [ Form.label [ for "dev_sheet_id" ] [ text "Sheet ID" ]
-                            , Input.text [ Input.id "dev_sheet_id", Input.onInput ChangeSheetID, Input.value (Maybe.withDefault "" model.sheetId) ]
+                            , Input.text [ Input.id "dev_sheet_id", Input.onInput ChangeSheetID, Input.value model.sheetId ]
                             , Form.help [] [ text "Sheet ID you wish to query for: /sheets/:sheet_id" ]
                             , Button.button [ Button.primary, Button.onClick FetchSheet ] [ text "Fetch" ]
                             ]
@@ -527,107 +487,12 @@ viewDevelopmentDebugHeader model =
                         ]
                     ]
                 ]
-        , Card.config []
-            |> Card.header []
-                [ text "Edit sheet" ]
-            |> Card.block []
-                [ Card.text []
-                    [ a [ href ("http://localhost:3000/sheets/" ++ (Maybe.withDefault "" model.sheetId) ++ "/edit") ] [ text "Edit sheet" ]
-                    ]
-                ]
         ]
-
-
-viewTable : Model -> Html Msg
-viewTable model =
-    Table.table
-        { options = [ Table.attr <| class "signup-table" ]
-        , thead = Table.thead [] [ viewTableColumnHeaderRow model.columns ]
-        , tbody = Table.tbody [] (List.map (viewTableRow model) model.rows)
-        }
 
 
 sortByPosition : List (Sortable a) -> List (Sortable a)
 sortByPosition sortable =
     List.sortBy .position sortable
-
-
-viewTableColumnHeaderRow : List Column -> Table.Row Msg
-viewTableColumnHeaderRow columnList =
-    Table.tr [] ([ (Table.th [] [ text "" ]) ] ++ (List.map viewColumnHeader (columnList |> sortByPosition)))
-
-
-viewColumnHeader : Column -> Table.Cell Msg
-viewColumnHeader column =
-    Table.th [ Table.cellAttr <| class "signup-table__column-header signup-table__header" ]
-        [ text column.value ]
-
-
-viewTableRow : Model -> Row -> Table.Row Msg
-viewTableRow model row =
-    let
-        signupSlotList =
-            model.signupSlots
-
-        signupList =
-            model.signups
-    in
-        Table.tr []
-            (List.append
-                [ (Table.th [ Table.cellAttr <| class "signup-table__row-header signup-table__header" ] [ text row.value ]) ]
-                (viewRowSlots row model)
-            )
-
-
-viewRowSlots : Row -> Model -> List (Table.Cell Msg)
-viewRowSlots row model =
-    let
-        signupList =
-            model.signups
-
-        rowSignupSlots =
-            (List.filter (\slot -> slot.rowId == row.id) model.signupSlots)
-    in
-        List.map (\rowSignupSlot -> viewSignupSlot rowSignupSlot model) rowSignupSlots
-
-
-viewSignupSlot : SignupSlot -> Model -> Table.Cell Msg
-viewSignupSlot signupSlot model =
-    let
-        isFocused =
-            model.focusedSlotId == Just signupSlot.id
-    in
-        Table.td
-            [ Table.cellAttr <|
-                classList
-                    [ ( "signup-table__cell", True )
-                    , ( "signup-table__cell--focused", isFocused )
-                    ]
-            ]
-            [ div [ class "signup-list" ]
-                (List.append
-                    (viewSignupsForSlot model signupSlot model.signups)
-                    [ focusedSignupSlot model isFocused ]
-                )
-            , if (isSignupSlotFull model signupSlot) then
-                Button.button
-                    [ Button.disabled True
-                    , Button.small
-                    , Button.outlineSecondary
-                    , Button.block
-                    ]
-                    [ text "Slot full" ]
-              else if (isSignupSlotClosed signupSlot) then
-                Button.button
-                    [ Button.disabled True
-                    , Button.small
-                    , Button.outlineSecondary
-                    , Button.block
-                    ]
-                    [ text "Slot closed" ]
-              else
-                viewSignupForm signupSlot model isFocused
-            ]
 
 
 viewSignupSlotAsCard : Model -> SignupSlot -> Html Msg
@@ -689,14 +554,6 @@ focusedSignupSlot model isFocused =
             Html.text ""
 
 
-popoverStateForSignupSlot : Model -> SignupSlot -> Popover.State
-popoverStateForSignupSlot model signupSlot =
-    List.filter (\ssp -> ssp.signupSlotId == signupSlot.id) model.signupSlotPopovers
-        |> List.head
-        |> Maybe.map .popoverState
-        |> Maybe.withDefault Popover.initialState
-
-
 modalStateForSignupSlot : Model -> SignupSlot -> Modal.State
 modalStateForSignupSlot model signupSlot =
     List.filter (\ssp -> ssp.signupSlotId == signupSlot.id) model.signupSlotModals
@@ -718,30 +575,6 @@ isSignupSlotFull model signupSlot =
 isSignupSlotClosed : SignupSlot -> Bool
 isSignupSlotClosed signupSlot =
     signupSlot.closed
-
-
-viewSignupForm : SignupSlot -> Model -> Bool -> Html Msg
-viewSignupForm signupSlot model isFocused =
-    div []
-        [ Popover.config
-            (Button.button
-                [ Button.small
-                , Button.primary
-                , Button.onClick (FocusSlotJoin signupSlot.id)
-                , Button.attrs <|
-                    Popover.onClick
-                        (popoverStateForSignupSlot model signupSlot)
-                        (PopoverMsg signupSlot.id)
-                ]
-                [ text "Join →" ]
-            )
-            |> Popover.bottom
-            |> Popover.titleH3 [] [ text ("Join this slot: " ++ (viewSignupSlotTitle model signupSlot)) ]
-            |> Popover.content []
-                [ viewSignupRawForm signupSlot model isFocused
-                ]
-            |> Popover.view (popoverStateForSignupSlot model signupSlot)
-        ]
 
 
 viewSignupFormAsModal : SignupSlot -> Model -> Bool -> Html Msg
@@ -864,65 +697,3 @@ subscriptions model =
 
 
 -- HTTP
-
-
-encodedSignupValue : Model -> Json.Encode.Value
-encodedSignupValue model =
-    Json.Encode.object
-        [ ( "signup_slot_id", Json.Encode.string (Maybe.withDefault "" model.focusedSlotId) )
-        , ( "name", Json.Encode.string (Maybe.withDefault "" model.currentNewSignupName) )
-        , ( "email", Json.Encode.string (Maybe.withDefault "" model.currentNewSignupEmail) )
-        , ( "comment", Json.Encode.string (Maybe.withDefault "" model.currentNewSignupComment) )
-        ]
-
-
-createSignup : Model -> Cmd Msg
-createSignup model =
-    let
-        url =
-            model.apiBaseEndpoint ++ "/api/v1/signups"
-    in
-        HttpBuilder.post url
-            |> HttpBuilder.withHeaders [ ( "Content-Type", "application/json" ), ( "Authorization", "WejoininAuth key=" ++ model.apiKey ) ]
-            |> HttpBuilder.withJsonBody (encodedSignupValue model)
-            |> HttpBuilder.withExpect (Http.expectJson decodeSignupResponse)
-            |> HttpBuilder.send ReceiveSignupResponse
-
-
-getSheetDetails : String -> Maybe SheetID -> String -> Cmd Msg
-getSheetDetails apiBaseEndpoint maybeSheetId apiKey =
-    let
-        url =
-            apiBaseEndpoint ++ "/api/v1/sheets/" ++ (Maybe.withDefault "" maybeSheetId) ++ ".json"
-    in
-        case maybeSheetId of
-            Just sheetId ->
-                HttpBuilder.get url
-                    |> HttpBuilder.withHeaders [ ( "Content-Type", "application/json" ), ( "Authorization", "WejoininAuth key=" ++ apiKey ) ]
-                    |> HttpBuilder.withExpect (Http.expectJson decodeSheetResponse)
-                    |> HttpBuilder.send ReceiveSheetDetails
-
-            Nothing ->
-                Cmd.none
-
-
-decodeSignupResponse : Decoder Signup
-decodeSignupResponse =
-    map4 Signup
-        (field "id" string)
-        (field "signup_slot_id" string)
-        (field "name" string)
-        (field "comment" string)
-
-
-decodeSheetResponse : Decoder Sheet
-decodeSheetResponse =
-    map8 Sheet
-        (field "id" string)
-        (field "title" string)
-        (field "description" string)
-        (field "rows" decodeRows)
-        (field "columns" decodeColumns)
-        (field "signup_slots" decodeSignupSlots)
-        (field "signups" decodeSignups)
-        (field "is_name_visible" bool)
