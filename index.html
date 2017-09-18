@@ -57,7 +57,9 @@
           var lastTabEl = tabs[tabs.length-1];
           visibilityDetection.registerVisibilityChangeHandler(lastTabEl, sideScrollerEl);
           var yOffset = sideScrollerEl.getBoundingClientRect().y;
+          var headerHeight = sideScrollerEl.getBoundingClientRect().height;
           app.ports.updateHeaderBoundaries.send(yOffset);
+          app.ports.updateHeaderHeight.send(headerHeight);
         }, 100);
       })
 
