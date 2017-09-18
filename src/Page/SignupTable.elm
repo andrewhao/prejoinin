@@ -2,6 +2,7 @@ module Page.SignupTable exposing (Model, Msg, view, update)
 
 import Bootstrap.Popover as Popover
 import Html exposing (..)
+import Data.Sheet exposing (SignupSlotID)
 
 
 type alias Msg =

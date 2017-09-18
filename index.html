@@ -33,6 +33,11 @@
         apiKey: "921007af-4fe3-449b-9854-758d05874911"
       });
 
+      var scrollDetection = new ScrollDetection(window, document, (oldScroll, newScroll) => {
+        app.ports.scroll.send([oldScroll, newScroll]);
+      });
+      scrollDetection.registerHandler();
+
       // Port signifying an event when a modal opens, and when one is closed.
       // This is important because TWBS modals need a body tag class to prevent
       // the background from hijacking the scroll in the lightbox.
@@ -51,6 +56,8 @@
           var sideScrollerEl = document.querySelector('.side-scroller');
           var lastTabEl = tabs[tabs.length-1];
           visibilityDetection.registerVisibilityChangeHandler(lastTabEl, sideScrollerEl);
+          var yOffset = sideScrollerEl.getBoundingClientRect().y;
+          app.ports.updateHeaderBoundaries.send(yOffset);
         }, 100);
       })
 
