@@ -51,6 +51,13 @@ port updateHeaderBoundaries : (Int -> msg) -> Sub msg
 
 
 
+-- Inbound: Measure the height of the headerHeight
+
+
+port updateHeaderHeight : (Int -> msg) -> Sub msg
+
+
+
 -- MESSAGES
 
 
@@ -73,6 +80,7 @@ type Msg
     | Header Move
     | HeaderPositionChanged HeaderPositionStyle
     | UpdateHeaderYBoundary Int
+    | UpdateHeaderHeight Int
 
 
 type alias SignupSlotModal =
@@ -116,6 +124,7 @@ type alias Model =
     , isNameVisible : Bool
     , headerPositionStyle : HeaderPositionStyle
     , headerYBoundary : Int
+    , headerHeight : Int
     }
 
 
@@ -161,6 +170,7 @@ init flags =
         True
         Static
         400
+        100
     , getSheetDetails flags.apiBaseEndpoint flags.sheetId flags.apiKey
         |> Http.send ReceiveSheetDetails
     )
@@ -309,6 +319,9 @@ update msg model =
         UpdateHeaderYBoundary yOffset ->
             ( { model | headerYBoundary = yOffset }, Cmd.none )
 
+        UpdateHeaderHeight height ->
+            ( { model | headerHeight = height }, Cmd.none )
+
 
 getSignupSlot : Model -> Maybe SignupSlotID -> Maybe SignupSlot
 getSignupSlot model signupSlotIdMaybe =
@@ -413,7 +426,7 @@ viewColumnSideScroller : Model -> Html Msg
 viewColumnSideScroller model =
     div []
         [ (if model.headerPositionStyle == Fixed then
-            div [ style [ ( "height", "100px" ) ] ] []
+            div [ style [ ( "height", (toString model.headerHeight) ++ "px" ) ] ] []
            else
             Html.text ""
           )
@@ -427,7 +440,7 @@ viewColumnSideScroller model =
             ]
             [ div [ class "side-scroller__items" ] (viewColumnsSideScrollerItems model)
             , (if model.needsRightScrollerArrow then
-                div [ class "fab-button fab-button--right fab-button--bounce fab-button--noclick" ] [ i [ class "material-icons" ] [ text ">" ] ]
+                div [ class "fab-button fab-button--right fab-button--bounce fab-button--noclick" ] [ i [ class "material-icons" ] [ text "arrow_forward" ] ]
                else
                 Html.text ""
               )
@@ -757,4 +770,5 @@ subscriptions model =
         [ needsRightScrollerArrow ReceiveNeedsRightScrollerArrowUpdate
         , scroll Header
         , updateHeaderBoundaries UpdateHeaderYBoundary
+        , updateHeaderHeight UpdateHeaderHeight
         ]
