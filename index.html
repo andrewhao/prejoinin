@@ -33,12 +33,10 @@
         apiKey: "921007af-4fe3-449b-9854-758d05874911"
       });
 
-      var scroll = window.pageYOffset || document.body.scrollTop;
-      window.onscroll = function() {
-    		var newScroll = window.pageYOffset || document.body.scrollTop;
-    		app.ports.scroll.send([scroll, newScroll]);
-    		scroll = newScroll;
-    	};
+      var scrollDetection = new ScrollDetection(window, document, (oldScroll, newScroll) => {
+        app.ports.scroll.send([oldScroll, newScroll]);
+      });
+      scrollDetection.registerHandler();
 
       // Port signifying an event when a modal opens, and when one is closed.
       // This is important because TWBS modals need a body tag class to prevent
