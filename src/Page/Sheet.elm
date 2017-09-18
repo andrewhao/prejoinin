@@ -16,6 +16,7 @@ import Html.Events exposing (onClick, onInput, onSubmit)
 import Http
 import Toasty
 import Request.Sheet exposing (getSheetDetails, createSignup)
+import Scroll exposing (Move)
 
 
 -- PORTS
@@ -33,6 +34,20 @@ port modalOpened : Bool -> Cmd msg
 
 
 port needsRightScrollerArrow : (Bool -> msg) -> Sub msg
+
+
+
+-- Inbound: If the page is scrolled
+
+
+port scroll : (Move -> msg) -> Sub msg
+
+
+
+-- Inbound: Measure the top height offset of the header
+
+
+port updateHeaderBoundaries : (Int -> msg) -> Sub msg
 
 
 
@@ -55,6 +70,9 @@ type Msg
     | ChangeViewStyle PageViewStyle
     | ToastyMsg (Toasty.Msg String)
     | ReceiveNeedsRightScrollerArrowUpdate Bool
+    | Header Move
+    | HeaderPositionChanged HeaderPositionStyle
+    | UpdateHeaderYBoundary Int
 
 
 type alias SignupSlotModal =
@@ -66,6 +84,11 @@ type alias SignupSlotModal =
 type PageViewStyle
     = CardView
     | TableView
+
+
+type HeaderPositionStyle
+    = Fixed
+    | Static
 
 
 type alias Model =
@@ -91,6 +114,8 @@ type alias Model =
     , toasties : Toasty.Stack String
     , needsRightScrollerArrow : Bool
     , isNameVisible : Bool
+    , headerPositionStyle : HeaderPositionStyle
+    , headerYBoundary : Int
     }
 
 
@@ -134,6 +159,8 @@ init flags =
         Toasty.initialState
         False
         True
+        Static
+        400
     , getSheetDetails flags.apiBaseEndpoint flags.sheetId flags.apiKey
         |> Http.send ReceiveSheetDetails
     )
@@ -268,6 +295,20 @@ update msg model =
         ToastyMsg subMsg ->
             Toasty.update defaultToastConfig ToastyMsg subMsg model
 
+        Header move ->
+            Scroll.handle
+                [ update (HeaderPositionChanged Fixed) |> Scroll.onCrossDown (toFloat model.headerYBoundary)
+                , update (HeaderPositionChanged Static) |> Scroll.onCrossUp (toFloat model.headerYBoundary)
+                ]
+                move
+                model
+
+        HeaderPositionChanged positionStyle ->
+            ( { model | headerPositionStyle = positionStyle }, Cmd.none )
+
+        UpdateHeaderYBoundary yOffset ->
+            ( { model | headerYBoundary = yOffset }, Cmd.none )
+
 
 getSignupSlot : Model -> Maybe SignupSlotID -> Maybe SignupSlot
 getSignupSlot model signupSlotIdMaybe =
@@ -360,15 +401,37 @@ viewCard model =
         ]
 
 
+viewHeaderPositionStyle : Model -> String
+viewHeaderPositionStyle model =
+    if model.headerPositionStyle == Fixed then
+        "fixed"
+    else
+        "relative"
+
+
 viewColumnSideScroller : Model -> Html Msg
 viewColumnSideScroller model =
-    div [ class "side-scroller" ]
-        [ div [ class "side-scroller__items" ] (viewColumnsSideScrollerItems model)
-        , (if model.needsRightScrollerArrow then
-            div [ class "fab-button fab-button--right fab-button--bounce fab-button--noclick" ] [ i [ class "material-icons" ] [ text "arrow_forward" ] ]
+    div []
+        [ (if model.headerPositionStyle == Fixed then
+            div [ style [ ( "height", "100px" ) ] ] []
            else
             Html.text ""
           )
+        , div
+            [ class "side-scroller"
+            , style
+                [ ( "position", (viewHeaderPositionStyle model) )
+                , ( "top", "0" )
+                , ( "z-index", "1" )
+                ]
+            ]
+            [ div [ class "side-scroller__items" ] (viewColumnsSideScrollerItems model)
+            , (if model.needsRightScrollerArrow then
+                div [ class "fab-button fab-button--right fab-button--bounce fab-button--noclick" ] [ i [ class "material-icons" ] [ text "arrow_forward" ] ]
+               else
+                Html.text ""
+              )
+            ]
         ]
 
 
@@ -692,8 +755,6 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ needsRightScrollerArrow ReceiveNeedsRightScrollerArrowUpdate
+        , scroll Header
+        , updateHeaderBoundaries UpdateHeaderYBoundary
         ]
-
-
-
--- HTTP
