@@ -47,14 +47,14 @@ port scroll : (Move -> msg) -> Sub msg
 -- Inbound: Measure the top height offset of the header
 
 
-port updateHeaderBoundaries : (Int -> msg) -> Sub msg
+port updateHeaderBoundaries : (Float -> msg) -> Sub msg
 
 
 
 -- Inbound: Measure the height of the headerHeight
 
 
-port updateHeaderHeight : (Int -> msg) -> Sub msg
+port updateHeaderHeight : (Float -> msg) -> Sub msg
 
 
 
@@ -79,8 +79,8 @@ type Msg
     | ReceiveNeedsRightScrollerArrowUpdate Bool
     | Header Move
     | HeaderPositionChanged HeaderPositionStyle
-    | UpdateHeaderYBoundary Int
-    | UpdateHeaderHeight Int
+    | UpdateHeaderYBoundary Float
+    | UpdateHeaderHeight Float
 
 
 type alias SignupSlotModal =
@@ -123,8 +123,8 @@ type alias Model =
     , needsRightScrollerArrow : Bool
     , isNameVisible : Bool
     , headerPositionStyle : HeaderPositionStyle
-    , headerYBoundary : Int
-    , headerHeight : Int
+    , headerYBoundary : Float
+    , headerHeight : Float
     }
 
 
@@ -307,8 +307,8 @@ update msg model =
 
         Header move ->
             Scroll.handle
-                [ update (HeaderPositionChanged Fixed) |> Scroll.onCrossDown (toFloat model.headerYBoundary)
-                , update (HeaderPositionChanged Static) |> Scroll.onCrossUp (toFloat model.headerYBoundary)
+                [ update (HeaderPositionChanged Fixed) |> Scroll.onCrossDown model.headerYBoundary
+                , update (HeaderPositionChanged Static) |> Scroll.onCrossUp model.headerYBoundary
                 ]
                 move
                 model
