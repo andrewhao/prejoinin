@@ -1,6 +1,6 @@
 /* Detect changes in window scroll position and fire updates.
  */
-import debounce from 'debounce';
+import throttle from 'throttleit';
 
 export default class ScrollDetection {
   constructor(window, document, handleScroll) {
@@ -12,10 +12,10 @@ export default class ScrollDetection {
 
   registerHandler() {
     this.currentScrollPosition = this.window.pageYOffset || this.document.body.scrollTop;
-    this.window.onscroll = debounce(() => {
+    this.window.onscroll = throttle(() => {
       var newScroll = this.window.pageYOffset || this.document.body.scrollTop;
       this.handleScroll(this.currentScrollPosition, newScroll);
       this.currentScrollPosition = newScroll;
-    }, 18);
+    }, 100);
   };
 }

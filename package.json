@@ -4,8 +4,8 @@
   "description": "Wejoinin signup sheet preview widget.",
   "main": "dist/js/app.js",
   "dependencies": {
-    "debounce": "^1.0.2",
     "jquery": "3.2.1",
+    "throttleit": "^1.0.0",
     "vissense": "^0.10.0"
   },
   "devDependencies": {

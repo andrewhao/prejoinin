@@ -427,7 +427,7 @@ viewColumnSideScroller model =
             ]
             [ div [ class "side-scroller__items" ] (viewColumnsSideScrollerItems model)
             , (if model.needsRightScrollerArrow then
-                div [ class "fab-button fab-button--right fab-button--bounce fab-button--noclick" ] [ i [ class "material-icons" ] [ text "arrow_forward" ] ]
+                div [ class "fab-button fab-button--right fab-button--bounce fab-button--noclick" ] [ i [ class "material-icons" ] [ text ">" ] ]
                else
                 Html.text ""
               )
