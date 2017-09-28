@@ -485,12 +485,24 @@ viewCardForSlot model signupSlot =
     let
         rowMaybe =
             getRowForSlot signupSlot model.rows
+
+        isFocused =
+            model.focusedSlotId == Just signupSlot.id
     in
         case rowMaybe of
             Just row ->
-                Card.config [ Card.attrs [ class "signup-card-list__card" ] ]
-                    |> Card.header [ class "signup-card-list__row-header" ] [ text row.value ]
-                    |> Card.block [ Card.blockAttrs [ class "signup-card-list__card-body" ] ]
+                Card.config
+                    [ Card.attrs
+                        [ classList
+                            [ ( "signup-card", True )
+                            , ( "signup-card--focused", isFocused )
+                            , ( "signup-card--closed", (isSignupSlotClosed signupSlot) )
+                            , ( "signup-card--full", (isSignupSlotFull model signupSlot) )
+                            ]
+                        ]
+                    ]
+                    |> Card.header [ class "signup-card__header" ] [ text row.value ]
+                    |> Card.block [ Card.blockAttrs [ class "signup-card__body" ] ]
                         [ Card.text []
                             [ viewSignupSlotAsCard model signupSlot ]
                         ]
@@ -578,29 +590,17 @@ viewSignupSlotAsCard model signupSlot =
             model.focusedSlotId == Just signupSlot.id
     in
         div
-            [ classList
-                [ ( "signup-card", True )
-                , ( "signup-card--focused", isFocused )
-                ]
-            ]
+            []
             [ div [ class "signup-list" ]
                 (List.append
                     (viewSignupsForSlot model signupSlot model.signups)
                     [ focusedSignupSlot model isFocused ]
                 )
             , if (isSignupSlotFull model signupSlot) then
-                Button.button
-                    [ Button.disabled True
-                    , Button.small
-                    , Button.outlineSecondary
-                    ]
+                div [ class "signup-card__status signup-card__status--full" ]
                     [ text "Slot full" ]
               else if (isSignupSlotClosed signupSlot) then
-                Button.button
-                    [ Button.disabled True
-                    , Button.small
-                    , Button.outlineSecondary
-                    ]
+                div [ class "signup-card__status signup-card__status--closed" ]
                     [ text "Slot closed" ]
               else
                 viewSignupFormAsModal signupSlot model isFocused
