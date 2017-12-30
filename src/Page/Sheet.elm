@@ -1,4 +1,4 @@
-port module Page.Sheet exposing (Msg(..), Model, Flags, init, update, view, subscriptions)
+port module Page.Sheet exposing (Msg(..), Model, Flags, init, update, view, subscriptions, sortByPosition)
 
 import Bootstrap.Alert as Alert
 import Bootstrap.Button as Button

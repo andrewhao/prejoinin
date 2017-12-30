@@ -4,7 +4,12 @@ A responsive Wejoinin sheet signup widget. Uses Elm 0.18.
 
 ## Installation
 
-    $ npm run compile
+    $ brew install yarn
+    $ yarn install
+
+## Compile the app
+
+    $ yarn compile
 
 ## File structure
 
@@ -29,15 +34,15 @@ dist/
 
 You can compile the app with Elm Live, which provides hot code reloading upon file changes in the dev environment.
 
+    $ yarn elm:live
+
+This is shorthand for:
+
     $ elm live Main.elm --output=app.js --open
-
-This is shorthanded to:
-
-    $ npm run elm:live
 
 Else, if you want to use Elm Reactor (dev server) with its awesome time travel debugger, you can run:
 
-    $ elm Reactor
+    $ elm reactor
     $ open http://localhost:8000
 
 ## JS interface
@@ -77,7 +82,13 @@ It is packaged as an [npm package](https://www.npmjs.com/package/prejoinin). You
 
 ## Tests
 
-TBD
+We use the elm-test package to run tests.
+
+Tests live in the `/tests` folder.
+
+### Running tests
+
+    $ yarn test
 
 ## Staging on Heroku
 
@@ -85,4 +96,10 @@ Deploys to https://wejoinin-ui.herokuapp.com
 
 ## Production deploy
 
-TBD
+This app is published to npm, for consumption by host apps (e.g. the Wejoinin Rails app.)
+
+If you wish to publish a new version of the app, bump the version number in `package.json`, or use the `npm version major|minor|patch` command.
+
+Commit your changes.
+
+Then run `npm publish`

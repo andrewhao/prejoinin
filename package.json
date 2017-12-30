@@ -4,6 +4,7 @@
   "description": "Wejoinin signup sheet preview widget.",
   "main": "dist/js/app.js",
   "dependencies": {
+    "elm-test": "^0.18.12",
     "jquery": "3.2.1",
     "throttleit": "^1.0.0",
     "vissense": "^0.10.0"
@@ -26,18 +27,18 @@
   "engines": {
     "node": "^8.4.0"
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "scripts": {
-    "build-task:scss-compile": "node-sass-chokidar --source-map true scss/ -o dist/css",
-    "build-task:autoprefixer": "postcss dist/css/*.css --use autoprefixer -d dist/css",
+    "build-task:scss-compile":
+      "node-sass-chokidar --source-map true scss/ -o dist/css",
+    "build-task:autoprefixer":
+      "postcss dist/css/*.css --use autoprefixer -d dist/css",
     "html:build": "mkdir -p dist && cp index.html dist",
     "sass:build": "npm-run-all -p build-task:*",
     "sass:watch": "chokidar 'scss/**/*.scss' -c 'npm run sass:build'",
     "webpack": "webpack",
     "dev": "npm-run-all -p sass:*",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "elm test",
     "elm:build": "elm make src/Main.elm --output=dist/js/app.js",
     "elm:live": "elm live src/Main.elm --output=dist/js/app.js --open --debug",
     "compile": "npm-run-all html:build sass:build elm:build webpack"
